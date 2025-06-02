@@ -1,0 +1,527 @@
+# Luồng Hoạt Động của Ứng Dụng Spring Boot + Spring Security + JWT
+
+## 1. Tổng quan về kiến trúc hệ thống
+
+Hệ thống sử dụng mô hình Spring Boot kết hợp với Spring Security và JWT (JSON Web Token) để xác thực và phân quyền. Mô hình này có các thành phần chính:
+
+- **Controller**: Tiếp nhận request từ client
+- **Service**: Xử lý logic nghiệp vụ
+- **Repository**: Tương tác với cơ sở dữ liệu
+- **Security**: Xác thực và phân quyền
+- **Entity**: Đại diện cho các bảng trong cơ sở dữ liệu
+- **DTO**: Đối tượng truyền dữ liệu giữa các layer
+
+## 2. Luồng xử lý khi người dùng đăng nhập
+
+1. Client gửi request POST tới `/api/auth/login` với username và password
+2. `AuthController.authenticateUser()` tiếp nhận request
+3. `AuthService.authenticateUser()` gọi Spring Security để xác thực
+4. `AuthenticationManager` kiểm tra thông tin đăng nhập thông qua `UserDetailsService`
+5. Nếu xác thực thành công:
+   - `JwtUtils.generateJwtToken()` tạo token JWT
+   - Token JWT cùng thông tin người dùng được trả về client
+6. Client lưu token JWT và sử dụng cho các request tiếp theo
+
+## 3. Luồng xử lý khi người dùng truy cập tài nguyên được bảo vệ
+
+1. Client gửi request với header Authorization chứa JWT token
+2. Request đi qua bộ lọc `AuthTokenFilter`:
+   - `AuthTokenFilter.doFilterInternal()` được gọi cho mỗi request
+   - `parseJwt()` trích xuất token từ header
+   - `JwtUtils.validateJwtToken()` kiểm tra tính hợp lệ của token
+   - `JwtUtils.getUserNameFromJwtToken()` lấy username từ token
+   - `UserDetailsService.loadUserByUsername()` tải thông tin người dùng
+   - Thiết lập xác thực trong `SecurityContextHolder`
+3. Request tiếp tục đến `WebSecurityConfig` để kiểm tra phân quyền:
+   - URL công khai (như `/api/auth/**`) được phép truy cập không cần xác thực
+   - URL khác yêu cầu xác thực
+   - Annotation `@PreAuthorize` kiểm tra vai trò người dùng
+4. Nếu đủ quyền, request tiếp tục đến Controller tương ứng
+5. Controller gọi Service xử lý nghiệp vụ
+6. Service tương tác với Repository để truy xuất/cập nhật dữ liệu
+7. Kết quả được trả về client
+
+## 4. Luồng xử lý khi người dùng đăng ký
+
+1. Client gửi request POST tới `/api/auth/register` với thông tin đăng ký
+2. `AuthController.registerUser()` tiếp nhận request
+3. `AuthService.registerUser()` xử lý:
+   - Kiểm tra username/email đã tồn tại chưa
+   - Mã hóa mật khẩu với `PasswordEncoder`
+   - Tạo đối tượng User với vai trò mặc định (patient)
+   - Lưu vào cơ sở dữ liệu qua `UserRepository`
+   - Tự động đăng nhập và tạo JWT token
+4. Token JWT cùng thông tin người dùng được trả về client
+
+## 5. Chi tiết các thành phần quan trọng
+
+### 5.1. Bảo mật (Security)
+
+- **WebSecurityConfig**: Cấu hình chính cho Spring Security
+  - Định nghĩa các URL công khai/bảo vệ
+  - Cấu hình CSRF, CORS, session management
+  - Thiết lập các filter bảo mật
+
+- **AuthTokenFilter**: Filter JWT
+  - Trích xuất và xác thực JWT token
+  - Thiết lập thông tin xác thực trong SecurityContext
+
+- **JwtUtils**: Công cụ xử lý JWT
+  - Tạo JWT token từ thông tin xác thực
+  - Xác thực tính hợp lệ của token
+  - Trích xuất thông tin từ token
+
+- **UserDetailsServiceImpl**: Triển khai UserDetailsService
+  - Tải thông tin người dùng từ cơ sở dữ liệu
+  - Chuyển đổi User thành UserDetails
+
+- **UserDetailsImpl**: Triển khai UserDetails
+  - Chứa thông tin người dùng cho Spring Security
+  - Bao gồm username, password, authorities
+
+### 5.2. Controller
+
+- **AuthController**: Xử lý xác thực
+  - Đăng nhập (/login)
+  - Đăng ký (/register)
+  - Kiểm tra username/email
+
+- **UserController**: Xử lý thông tin người dùng
+  - Lấy thông tin người dùng hiện tại (/me)
+  - Các endpoint phân quyền theo vai trò
+
+### 5.3. Service
+
+- **AuthService/AuthServiceImpl**: Xử lý logic xác thực
+  - Đăng nhập và tạo JWT
+  - Đăng ký người dùng mới
+  - Kiểm tra tồn tại username/email
+
+### 5.4. Repository
+
+- **UserRepository**: Tương tác với bảng users
+  - Tìm kiếm người dùng theo username
+  - Kiểm tra tồn tại username/email
+
+- **RoleRepository**: Tương tác với bảng roles
+  - Tìm kiếm vai trò theo tên
+
+### 5.5. Model
+
+- **User**: Entity người dùng
+  - Thông tin cá nhân
+  - Mật khẩu (đã mã hóa)
+  - Liên kết với Role
+
+- **Role**: Entity vai trò
+  - Định nghĩa các vai trò trong hệ thống
+
+### 5.6. DTO
+
+- **LoginRequest**: Dữ liệu đăng nhập
+  - Username
+  - Password
+
+- **RegisterRequest**: Dữ liệu đăng ký
+  - Thông tin cá nhân
+  - Mật khẩu
+
+- **UserResponse**: Dữ liệu phản hồi
+  - Thông tin người dùng
+  - JWT token
+
+## 6. Quy trình xử lý CORS
+
+1. **CorsConfig** tạo bean CorsFilter:
+   - Đọc danh sách origin cho phép từ application.properties
+   - Thiết lập cấu hình CORS (headers, methods, credentials)
+   - Áp dụng cho tất cả các URL (/**)
+
+2. **WebSecurityConfig** thêm CorsFilter vào chuỗi filter bảo mật:
+   - `http.addFilterBefore(corsFilter, UsernamePasswordAuthenticationFilter.class)`
+
+3. Khi có request từ browser:
+   - Browser gửi preflight request (OPTIONS)
+   - CorsFilter kiểm tra origin có được phép không
+   - Nếu được phép, trả về header CORS phù hợp
+   - Browser tiếp tục gửi request chính
+
+## 7. Tương tác với cơ sở dữ liệu
+
+1. **Spring Data JPA**:
+   - Tự động tạo implementation cho các Repository
+   - Quản lý kết nối cơ sở dữ liệu qua EntityManager
+   - Dịch các method trong Repository thành câu SQL
+
+2. **Hibernate**:
+   - ORM framework cơ bản của Spring Data JPA
+   - Ánh xạ Entity sang bảng trong cơ sở dữ liệu
+   - Xử lý các quan hệ giữa các Entity
+
+3. **Transaction**:
+   - Được quản lý bởi Spring (@Transactional)
+   - Đảm bảo tính toàn vẹn của dữ liệu
+   - Tự động rollback khi có exception
+
+## 8. Lời khuyên khi phát triển và mở rộng
+
+1. **Bảo mật**:
+   - Luôn validate dữ liệu đầu vào ở cả frontend và backend
+   - Không lưu mật khẩu dưới dạng plain text
+   - Sử dụng HTTPS cho môi trường production
+   - Đặt thời gian hết hạn JWT token hợp lý
+
+2. **Cấu trúc code**:
+   - Tuân thủ nguyên tắc Single Responsibility
+   - Sử dụng DTO để tách biệt Entity và dữ liệu truyền tải
+   - Viết test đầy đủ cho các thành phần quan trọng
+
+3. **Hiệu suất**:
+   - Sử dụng cache cho dữ liệu ít thay đổi
+   - Tối ưu truy vấn cơ sở dữ liệu
+   - Sử dụng pagination cho các danh sách lớn
+
+4. **Quản lý lỗi**:
+   - Xử lý lỗi một cách nhất quán với @ExceptionHandler
+   - Ghi log đầy đủ để dễ dàng debug
+   - Trả về thông báo lỗi thân thiện với người dùng 
+
+## 9. Vai trò của Frontend (Chi tiết cho người mới học – Dễ nhìn hơn)
+
+Trong một ứng dụng web hiện đại, **frontend** (giao diện người dùng mà bạn thấy trên trình duyệt) đóng vai trò cực kỳ quan trọng trong quy trình xác thực (ai là bạn?) và phân quyền (bạn được làm gì?). Dưới đây là mô tả chi tiết từng bước, cùng với gợi ý về cách tổ chức code trong các file thường gặp. Chúng ta sẽ cố gắng làm cho nó thật dễ hiểu nhé!
+
+--- 
+
+**1. Gửi Yêu Cầu Đăng Nhập / Đăng Ký**
+
+*   **Mục tiêu:** Người dùng muốn đăng nhập vào tài khoản đã có hoặc tạo tài khoản mới.
+
+*   **Luồng hoạt động (Các bước diễn ra):**
+    1.  **Tương tác trên giao diện:** Người dùng mở trang web và thấy trang đăng nhập (ví dụ: địa chỉ `/login`) hoặc trang đăng ký (ví dụ: `/register`).
+        *   *Ví dụ file giao diện:* `LoginPage.js` hoặc `RegisterPage.js`.
+    2.  **Nhập thông tin:** Người dùng điền thông tin vào các ô như tên đăng nhập, mật khẩu (và email, các thông tin khác nếu là đăng ký) trên form.
+    3.  **Frontend thu thập dữ liệu:** Khi người dùng nhấn nút "Đăng nhập" hoặc "Đăng ký", mã JavaScript trong file giao diện (ví dụ: `LoginPage.js`) sẽ lấy các giá trị này.
+    4.  **Gọi "Người Vận Chuyển" (Service/API Client):** Thay vì component tự gửi request, nó sẽ nhờ một module chuyên biệt (gọi là **Service**) để nói chuyện với backend. 
+        *   *Ví dụ:* `AuthService.login(username, password)`.
+    5.  **Tạo và Gửi "Thư" (HTTP Request):** Module `AuthService.js` sẽ chuẩn bị một "bức thư" (là một **HTTP request**, thường là `POST`) gửi đến địa chỉ của backend (ví dụ: `/api/auth/login`). "Bức thư" này chứa thông tin người dùng (thường dưới dạng `JSON`).
+    6.  **Chờ phản hồi:** Frontend đợi backend xử lý và gửi "thư trả lời".
+
+*   **Các file thường liên quan (Nơi chứa code):**
+    *   `LoginPage.js` / `RegisterPage.js` (hoặc có đuôi `.jsx`, `.vue`, `.ts` tùy theo công nghệ frontend bạn dùng): Chứa HTML và logic của trang đăng nhập/đăng ký.
+    *   `AuthService.js` (hoặc `auth.api.js`): Chuyên xử lý các tác vụ liên quan đến xác thực như đăng nhập, đăng ký, đăng xuất bằng cách gọi API backend.
+    *   `ApiClient.js` (hoặc `http.js`): File cấu hình chung cho việc gửi HTTP request, có thể chứa địa chỉ gốc của API, các thiết lập chung.
+
+--- 
+
+**2. Lưu Trữ JWT Token và Thông Tin Người Dùng**
+
+*   **Mục tiêu:** Sau khi đăng nhập thành công, frontend cần cất giữ "chìa khóa" (JWT token) để dùng cho các lần sau.
+
+*   **Luồng hoạt động:**
+    1.  **Backend gửi "Chìa Khóa":** Nếu đăng nhập/đăng ký thành công, backend trả về response chứa **JWT token** và có thể cả thông tin cơ bản của người dùng (ID, username, vai trò).
+    2.  **Frontend nhận phản hồi:** Hàm trong `AuthService.js` (ví dụ: `AuthService.login`) nhận được response này.
+    3.  **Lấy "Chìa Khóa" và thông tin:** Frontend trích xuất JWT token (ví dụ: `responseData.accessToken`) và thông tin người dùng.
+    4.  **Cất giữ "Chìa Khóa" an toàn:** `AuthService.js` hoặc một nơi quản lý trạng thái chung (như **Redux Store**, **Vuex Store**, hoặc **React Context** trong file `authStore.js` hoặc `UserContext.js`) sẽ lưu JWT token.
+        *   Phổ biến nhất là dùng `localStorage`: `localStorage.setItem('jwtToken', token);`
+        *   Thông tin người dùng cũng có thể được lưu: `localStorage.setItem('user', JSON.stringify(userData));`
+    5.  **Cập nhật trạng thái:** Frontend đánh dấu là người dùng đã đăng nhập. Giao diện có thể thay đổi (ví dụ: hiện tên người dùng, nút logout).
+
+*   **Các file thường liên quan:**
+    *   `AuthService.js`: Xử lý response từ backend và điều phối việc lưu trữ.
+    *   `localStorage` / `sessionStorage`: API của trình duyệt để lưu dữ liệu.
+    *   `authStore.js` / `userContext.js` (nếu dùng State Management): Quản lý trạng thái đăng nhập và thông tin người dùng cho toàn ứng dụng.
+
+--- 
+
+**3. Gửi Token Với Mỗi Yêu Cầu Được Bảo Vệ**
+
+*   **Mục tiêu:** Khi người dùng muốn truy cập khu vực riêng tư, frontend phải xuất trình "chìa khóa" (JWT token).
+
+*   **Luồng hoạt động:**
+    1.  **Hành động của người dùng:** Người dùng nhấn vào link để xem thông tin cá nhân (`/profile`) hoặc vào trang quản trị.
+    2.  **Frontend chuẩn bị gọi API:** Một component (ví dụ: `ProfilePage.js`) cần lấy dữ liệu từ backend (ví dụ: từ `/api/users/me`). Nó sẽ gọi hàm trong service tương ứng (ví dụ: `UserService.getProfile()`).
+    3.  **Lấy "Chìa Khóa" đã lưu:** Trước khi gửi request, `UserService.js` (hoặc một **HTTP interceptor** - người gác cổng cho mọi request) sẽ lấy JWT token từ `localStorage`.
+    4.  **Đính kèm "Chìa Khóa" vào "Thư":** Token được thêm vào phần `Authorization` header của HTTP request, thường có dạng `Bearer <token>`.
+        *   *Ví dụ với `axios interceptor` trong `ApiClient.js`:*
+            ```javascript
+            // Mỗi khi có request mới được gửi đi
+            axiosInstance.interceptors.request.use(config => {
+              const token = localStorage.getItem('jwtToken'); // Lấy token
+              if (token) {
+                config.headers.Authorization = `Bearer ${token}`; // Gắn vào header
+              }
+              return config; // Gửi request đi tiếp
+            });
+            ```
+    5.  **Gửi request:** Request được gửi tới backend. Backend sẽ kiểm tra "chìa khóa" này.
+
+*   **Các file thường liên quan:**
+    *   `UserService.js`, `ProductService.js`, v.v.: Các file service gọi API cho các phần dữ liệu khác nhau.
+    *   `ApiClient.js` / `http.js`: Thường chứa **interceptor** để tự động đính kèm token vào mọi request cần thiết.
+    *   Các file component (`ProfilePage.js`, `AdminDashboard.js`): Nơi người dùng thực hiện hành động dẫn đến việc gọi API.
+
+--- 
+
+**4. Xử Lý Token Hết Hạn và Làm Mới (Refresh Token)**
+
+*   **Mục tiêu:** Nếu "chìa khóa" (access token) hết hạn, thử dùng "chìa khóa dự phòng" (refresh token) để lấy "chìa khóa mới" mà không bắt người dùng đăng nhập lại.
+
+*   **Luồng hoạt động (khi gặp lỗi 401 - Unauthorized):**
+    1.  **Backend từ chối:** Nếu token hết hạn, backend trả về lỗi `401 Unauthorized`.
+    2.  **Frontend bắt lỗi:** **HTTP interceptor** (trong `ApiClient.js`) hoặc service cụ thể sẽ nhận ra lỗi này.
+    3.  **Thử làm mới token (nếu có refresh token):**
+        *   Frontend kiểm tra xem có **refresh token** không (thường được cấp cùng access token và lưu ở `localStorage`).
+        *   Nếu có, frontend gửi request đến backend (ví dụ: `/api/auth/refreshtoken`) kèm theo refresh token.
+        *   Nếu thành công, backend trả về **access token mới**. Frontend lưu token mới này, và quan trọng là **thử lại request ban đầu** (đã bị lỗi 401) với token mới.
+        *   Nếu refresh token cũng hỏng/hết hạn, hoặc không có cơ chế này: Buộc người dùng đăng xuất.
+    4.  **Đăng xuất người dùng:** Nếu không làm mới được token, frontend xóa mọi token, thông tin người dùng và chuyển hướng về trang đăng nhập.
+
+*   **Các file thường liên quan:**
+    *   `ApiClient.js` / `http.js`: **Interceptor** là nơi lý tưởng để xử lý lỗi `401` và logic refresh token một cách tập trung.
+    *   `AuthService.js`: Chứa hàm gọi API refresh token và logic đăng xuất.
+    *   `authStore.js` / `userContext.js`: Cập nhật lại trạng thái ứng dụng khi đăng xuất.
+
+--- 
+
+**5. Điều Hướng Người Dùng (Routing)**
+
+*   **Mục tiêu:** Đảm bảo người dùng chỉ thấy các trang họ được phép xem.
+
+*   **Luồng hoạt động:**
+    1.  **Kiểm tra trạng thái đăng nhập (Route Guards):** Frontend dùng thư viện routing (ví dụ: **React Router**, **Vue Router**). Các **"Route Guards"** (người bảo vệ route) hoặc **"Protected Routes"** (route được bảo vệ) sẽ kiểm tra xem người dùng đã đăng nhập chưa (có token hợp lệ không) trước khi cho phép vào một trang.
+        *   *Ví dụ với React Router trong `App.js` hoặc `router.js`:*
+            ```javascript
+            // Component đặc biệt để bảo vệ route
+            function ProtectedRoute({ children }) {
+              const isLoggedIn = !!localStorage.getItem('jwtToken'); // Kiểm tra có token không
+              if (!isLoggedIn) {
+                // Nếu chưa đăng nhập, đẩy về trang login
+                return <Navigate to="/login" replace />;
+              }
+              return children; // Nếu đã đăng nhập, cho phép hiển thị nội dung trang
+            }
+
+            // Sử dụng ProtectedRoute cho các trang cần bảo vệ
+            // <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            ```
+    2.  **Điều hướng dựa trên trạng thái:**
+        *   **Chưa đăng nhập:** Nếu cố vào trang `/profile` mà chưa đăng nhập, Route Guard sẽ tự động chuyển hướng sang trang `/login`.
+        *   **Đăng nhập thành công:** Sau khi `AuthService.login()` thành công, frontend (thường là trong `AuthService` hoặc component login) sẽ dùng hàm của thư viện router (ví dụ: `navigate('/dashboard')`) để đưa người dùng đến trang chính (ví dụ: `/dashboard`).
+        *   **Đăng xuất:** Sau khi `AuthService.logout()` xóa token, người dùng được chuyển về trang `/login` hoặc trang chủ.
+
+*   **Các file thường liên quan:**
+    *   `App.js` (hoặc file cấu hình router chính như `router.js`, `index.router.js`): Nơi định nghĩa các routes, protected routes, và route guards.
+    *   `AuthService.js`: Có thể gọi hàm điều hướng sau khi login/logout.
+    *   Các Components: Nút bấm có thể kích hoạt điều hướng.
+
+--- 
+
+**6. Hiển Thị/Ẩn Giao Diện Dựa Trên Vai Trò (Role-Based UI)**
+
+*   **Mục tiêu:** Tùy chỉnh giao diện cho phù hợp với quyền hạn của người dùng (ví dụ: admin thấy nút quản lý, user thường thì không).
+
+*   **Luồng hoạt động:**
+    1.  **Lấy thông tin vai trò (roles):** Vai trò người dùng (ví dụ: `'ROLE_ADMIN'`, `'ROLE_USER'`) thường được lấy từ thông tin người dùng lưu sau khi đăng nhập (từ JWT token hoặc `localStorage`).
+    2.  **Kiểm tra quyền trong Component:** Trong các file component (ví dụ: `Navbar.js`, `AdminDashboard.js`), code JavaScript sẽ kiểm tra vai trò của người dùng hiện tại.
+        *   *Ví dụ trong một component React (sử dụng state management hoặc context):*
+            ```javascript
+            const user = useAuthStore(state => state.user); // Lấy thông tin user từ store
+
+            return (
+              <nav>
+                <Link to="/">Home</Link>
+                {user && user.roles.includes('ROLE_ADMIN') && (
+                  <Link to="/admin">Admin Panel</Link> // Chỉ admin thấy link này
+                )}
+                {user ? (
+                  <button onClick={logout}>Logout</button>
+                ) : (
+                  <Link to="/login">Login</Link>
+                )}
+              </nav>
+            );
+            ```
+    3.  **Render có điều kiện:** Dựa vào kết quả kiểm tra, các phần của giao diện (nút, menu, cả một khu vực) sẽ được hiển thị hoặc ẩn đi.
+
+*   **Các file thường liên quan:**
+    *   Bất kỳ file component nào cần hiển thị nội dung khác nhau dựa trên vai trò (`Navbar.js`, `Sidebar.js`, `ProductList.js`).
+    *   `authStore.js` / `userContext.js`: Cung cấp thông tin người dùng (bao gồm vai trò) cho các component.
+    *   `RoleBasedGuard.js` (hoặc **Higher Order Component - HOC**): Có thể tạo các component "bao bọc" để tái sử dụng logic kiểm tra vai trò.
+
+--- 
+
+**7. Xử Lý Lỗi Từ Backend**
+
+*   **Mục tiêu:** Thông báo cho người dùng một cách thân thiện khi có lỗi xảy ra từ phía backend.
+
+*   **Luồng hoạt động:**
+    1.  **Backend trả về lỗi:** Khi có vấn đề (sai mật khẩu, token không đúng, không có quyền, lỗi server...), backend sẽ trả về HTTP response với status code lỗi (ví dụ: `400`, `401`, `403`, `500`) và thường kèm theo thông điệp lỗi.
+    2.  **Frontend bắt lỗi:** Trong các hàm gọi API (ví dụ, trong `AuthService.js`), khối `catch` của **Promise** hoặc `try...catch` với **async/await** sẽ bắt các lỗi này.
+    3.  **Hiển thị thông báo lỗi:** Frontend lấy thông điệp lỗi từ response (ví dụ: `error.response.data.message`) và hiển thị nó cho người dùng. Có thể là một dòng chữ đỏ gần form đăng nhập, hoặc một thông báo popup (toast/notification).
+        *   *Ví dụ trong `LoginPage.js`:*
+            ```javascript
+            const [errorMessage, setErrorMessage] = useState('');
+
+            const handleLogin = async (credentials) => {
+              try {
+                setErrorMessage(''); // Xóa lỗi cũ
+                await AuthService.login(credentials);
+                // Điều hướng đi nếu thành công
+              } catch (error) {
+                // Lấy thông báo lỗi từ backend hoặc đặt một thông báo chung
+                const message = error.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+                setErrorMessage(message);
+              }
+            };
+            // ... Trong JSX:
+            // {errorMessage && <p style={{color: 'red'}}>{errorMessage}</p>}
+            ```
+
+*   **Các file thường liên quan:**
+    *   Các file service (`AuthService.js`, `UserService.js`): Nơi bắt lỗi từ API và có thể xử lý sơ bộ.
+    *   Các file component (`LoginPage.js`, `RegisterPage.js`): Hiển thị thông báo lỗi cụ thể cho hành động đó.
+    *   `NotificationService.js` / Toast Component: Module quản lý việc hiển thị thông báo lỗi global trên toàn ứng dụng.
+
+--- 
+
+**8. Đăng Xuất**
+
+*   **Mục tiêu:** Cho phép người dùng thoát khỏi tài khoản một cách an toàn.
+
+*   **Luồng hoạt động:**
+    1.  **Người dùng nhấn nút "Logout":** Nút này thường nằm ở `Navbar.js` hoặc menu cá nhân.
+    2.  **Gọi hàm logout:** Sự kiện click sẽ gọi hàm `AuthService.logout()`.
+    3.  **Dọn dẹp phía Frontend:** Hàm `logout()` sẽ:
+        *   Xóa JWT token và refresh token khỏi `localStorage` (hoặc `sessionStorage`).
+        *   Xóa thông tin người dùng đã lưu (ví dụ: trong `authStore` hoặc `localStorage`).
+        *   Cập nhật trạng thái ứng dụng thành "đã đăng xuất".
+    4.  **(Tùy chọn) Gọi API logout của backend:** Một số hệ thống có API `/logout` ở backend để vô hiệu hóa token phía server (ví dụ: thêm vào danh sách đen). Nếu có, `AuthService.js` sẽ gọi API này.
+    5.  **Điều hướng người dùng:** Chuyển người dùng về trang đăng nhập (`/login`) hoặc trang chủ (`/`).
+
+*   **Các file thường liên quan:**
+    *   `AuthService.js`: Chứa logic chính của việc đăng xuất, dọn dẹp token.
+    *   `Navbar.js` / Component chứa nút logout: Nơi người dùng kích hoạt hành động.
+    *   `authStore.js` / `userContext.js`: Xử lý việc cập nhật trạng thái người dùng.
+    *   `App.js` / `router.js`: Xử lý việc điều hướng sau khi đăng xuất.
+
+--- 
+
+Bằng cách chia nhỏ các trách nhiệm vào từng file và module cụ thể, việc quản lý quy trình xác thực và phân quyền ở frontend sẽ trở nên rõ ràng, dễ hiểu và dễ bảo trì hơn, ngay cả khi bạn mới bắt đầu học lập trình frontend! 
+
+---
+
+## 10. Lộ trình học tập cho người mới bắt đầu
+
+Để hiểu và xây dựng được một ứng dụng hoàn chỉnh như mô tả (Spring Boot + Spring Security + JWT + Frontend), bạn cần trang bị kiến thức từ nhiều phía. Dưới đây là lộ trình gợi ý, chia thành các giai đoạn chính:
+
+**Giai đoạn 1: Nền tảng Web và Lập trình cơ bản**
+
+1.  **Tìm hiểu về Web:**
+    *   **Internet hoạt động như thế nào?** Client là gì? Server là gì?
+    *   **HTTP/HTTPS:** Các phương thức request (GET, POST, PUT, DELETE), status codes (200, 404, 401, 500). Đây là cách client (trình duyệt) và server "nói chuyện".
+    *   **HTML (HyperText Markup Language):** Ngôn ngữ để xây dựng cấu trúc và nội dung của trang web. Học các thẻ cơ bản.
+    *   **CSS (Cascading Style Sheets):** Ngôn ngữ để tạo kiểu dáng, làm đẹp cho trang web (màu sắc, bố cục, font chữ).
+    *   **JavaScript (JS) cơ bản:** Ngôn ngữ lập trình khiến trang web trở nên "sống động" và tương tác được. Học về biến, kiểu dữ liệu, hàm, vòng lặp, điều kiện, DOM manipulation cơ bản.
+
+2.  **Ngôn ngữ lập trình Backend (Java):**
+    *   **Java Core:** Nếu bạn chọn Java cho backend (như Spring Boot trong tài liệu):
+        *   Cú pháp cơ bản: Biến, kiểu dữ liệu, toán tử, cấu trúc điều khiển (if/else, switch), vòng lặp (for, while).
+        *   Lập trình hướng đối tượng (OOP): Lớp (Class), Đối tượng (Object), Kế thừa, Đa hình, Đóng gói, Trừu tượng. Đây là trái tim của Java.
+        *   Collections Framework: `List`, `Set`, `Map` để quản lý tập hợp dữ liệu.
+        *   Xử lý ngoại lệ (Exception Handling).
+
+**Giai đoạn 2: Phát triển Frontend (Giao diện người dùng)**
+
+1.  **JavaScript nâng cao:**
+    *   ES6+ features: `let/const`, arrow functions, promises, async/await (rất quan trọng để làm việc với API), modules.
+    *   Cách JavaScript tương tác với trình duyệt (Browser APIs).
+
+2.  **Một Framework/Thư viện Frontend hiện đại:**
+    *   Chọn một trong các framework phổ biến: **React.js**, **Vue.js**, hoặc **Angular**.
+    *   Học cách tạo components (các khối xây dựng giao diện), quản lý trạng thái (state), xử lý sự kiện người dùng, routing (điều hướng trang).
+    *   *Lý do:* Các framework này giúp xây dựng giao diện phức tạp một cách có tổ chức và hiệu quả hơn. Phần "Vai trò của Frontend" trong tài liệu này mô tả cách frontend tương tác, và các framework này cung cấp công cụ để làm điều đó.
+
+3.  **Gọi API từ Frontend:**
+    *   Sử dụng `fetch` API (có sẵn trong trình duyệt) hoặc thư viện như `axios` để gửi request HTTP đến backend và nhận dữ liệu.
+    *   Cách xử lý JSON.
+
+**Giai đoạn 3: Phát triển Backend với Spring Boot**
+
+1.  **Khái niệm về API và RESTful API:**
+    *   API (Application Programming Interface) là gì?
+    *   RESTful API: Thiết kế API theo các nguyên tắc REST (Representational State Transfer).
+
+2.  **Giới thiệu về Spring Framework và Spring Boot:**
+    *   Spring Framework là gì? Các module chính.
+    *   Spring Boot: Giúp tạo ứng dụng Spring độc lập, chạy nhanh với ít cấu hình.
+    *   **Dependency Injection (DI) và Inversion of Control (IoC):** Các khái niệm cốt lõi của Spring. Tìm hiểu về `@Component`, `@Service`, `@Repository`, `@Autowired`.
+
+3.  **Xây dựng REST API với Spring Boot:**
+    *   `@RestController`, `@RequestMapping` (hoặc `@GetMapping`, `@PostMapping`, etc.).
+    *   Xử lý request parameters, request body.
+    *   Trả về JSON response.
+
+4.  **Làm việc với Cơ sở dữ liệu (CSDL):**
+    *   **SQL cơ bản:** Học cách truy vấn dữ liệu từ CSDL quan hệ (SELECT, INSERT, UPDATE, DELETE, JOIN).
+    *   **Spring Data JPA & Hibernate:**
+        *   JPA (Java Persistence API): Tiêu chuẩn để ánh xạ đối tượng Java sang CSDL.
+        *   Hibernate: Một implementation phổ biến của JPA.
+        *   `@Entity`: Định nghĩa các đối tượng Java tương ứng với bảng trong CSDL.
+        *   `@Repository`: Tạo các interface để tương tác với CSDL một cách dễ dàng (ví dụ: `UserRepository`, `RoleRepository`).
+        *   Tìm hiểu về `@Transactional`.
+
+**Giai đoạn 4: Bảo mật ứng dụng với Spring Security và JWT**
+
+1.  **Các khái niệm cơ bản về Bảo mật Web:**
+    *   **Authentication (Xác thực):** "Bạn là ai?" (ví dụ: kiểm tra username/password).
+    *   **Authorization (Phân quyền):** "Bạn được làm gì?" (ví dụ: user thường không được vào trang admin).
+    *   Hashing mật khẩu: Tại sao không bao giờ lưu mật khẩu dạng plain text.
+
+2.  **Spring Security cơ bản:**
+    *   Cách thêm Spring Security vào dự án.
+    *   Cấu hình cơ bản (`WebSecurityConfig`): Phân biệt URL công khai và URL cần bảo vệ.
+    *   `UserDetailsService` và `UserDetails`: Cung cấp thông tin người dùng cho Spring Security.
+    *   `PasswordEncoder`: Để mã hóa và kiểm tra mật khẩu.
+    *   Tìm hiểu về các bộ lọc (Filters) trong Spring Security.
+
+3.  **JWT (JSON Web Token):**
+    *   JWT là gì? Cấu trúc (Header, Payload, Signature).
+    *   Tại sao dùng JWT? (Stateless authentication - xác thực không cần server lưu trạng thái session).
+    *   Cách JWT được tạo ra (sign) và xác thực (verify).
+    *   Các thông tin (claims) thường có trong JWT payload.
+
+4.  **Tích hợp JWT với Spring Security:**
+    *   **`JwtUtils` (hoặc tên tương tự):** Lớp tiện ích để tạo token, xác thực token, trích xuất username từ token.
+    *   **`AuthTokenFilter` (hoặc `JwtRequestFilter`):** Một bộ lọc tùy chỉnh trong Spring Security, chạy trước các bộ lọc khác. Nó sẽ:
+        *   Lấy token từ `Authorization` header của mỗi request.
+        *   Xác thực token.
+        *   Nếu token hợp lệ, lấy thông tin người dùng và thiết lập `Authentication` trong `SecurityContextHolder`.
+    *   **`AuthController`:** Xử lý các request `/login` (tạo token) và `/register`.
+
+**Giai đoạn 5: Hoàn thiện và Mở rộng**
+
+1.  **DTO (Data Transfer Object):**
+    *   Tại sao cần DTO (ví dụ: `LoginRequest`, `RegisterRequest`, `UserResponse`) để truyền dữ liệu giữa các lớp và giữa client-server.
+
+2.  **CORS (Cross-Origin Resource Sharing):**
+    *   Hiểu tại sao trình duyệt chặn request từ một domain khác và cách `CorsConfig` giải quyết vấn đề này.
+
+3.  **Xử lý lỗi (Error Handling):**
+    *   Cách xử lý lỗi một cách nhất quán trong Spring Boot (ví dụ: `@ControllerAdvice`, `@ExceptionHandler`).
+
+4.  **Viết Tests:**
+    *   Unit test, Integration test cho ứng dụng.
+
+5.  **Thực hành liên tục:**
+    *   Xây dựng các dự án nhỏ ở mỗi giai đoạn để củng cố kiến thức.
+    *   Thử tự xây dựng lại toàn bộ ứng dụng như trong tài liệu này từng bước một.
+    *   Đọc thêm tài liệu, blog, xem video tutorials.
+
+**Lời khuyên:**
+
+*   **Kiên nhẫn:** Đây là một chặng đường dài, đừng nản lòng.
+*   **Thực hành nhiều:** Lý thuyết đi đôi với thực hành. Gõ code, chạy thử, sửa lỗi.
+*   **Đọc code của người khác:** Xem các dự án mẫu trên GitHub.
+*   **Tham gia cộng đồng:** Hỏi đáp trên các diễn đàn, group.
+
+Chúc bạn học tốt và thành công trên con đường trở thành nhà phát triển full-stack! 

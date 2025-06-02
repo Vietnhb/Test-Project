@@ -1,0 +1,435 @@
+-- Vô hiệu hóa kiểm tra khóa ngoại để tránh lỗi khi xóa bảng
+SET REFERENTIAL_INTEGRITY FALSE;
+
+-- Xóa các bảng nếu chúng đã tồn tại (theo thứ tự ngược lại để tránh vấn đề ràng buộc)
+DROP TABLE IF EXISTS notifications;              -- Bảng thông báo
+DROP TABLE IF EXISTS payments;                   -- Bảng thanh toán
+DROP TABLE IF EXISTS medication_reminders;       -- Bảng nhắc nhở uống thuốc
+DROP TABLE IF EXISTS patient_art_regimen;        -- Bảng phác đồ ARV của bệnh nhân
+DROP TABLE IF EXISTS art_regimens;               -- Bảng các phác đồ ARV
+DROP TABLE IF EXISTS lab_tests;                  -- Bảng kết quả xét nghiệm
+DROP TABLE IF EXISTS medical_records;            -- Bảng hồ sơ bệnh án
+DROP TABLE IF EXISTS articles;                   -- Bảng bài viết/tin tức
+DROP TABLE IF EXISTS appointment;                -- Bảng lịch hẹn (gộp cả tư vấn và khám bệnh)
+DROP TABLE IF EXISTS appointment_slots;          -- Bảng các slot thời gian đặt lịch khả dụng
+DROP TABLE IF EXISTS doctor_schedule;            -- Bảng lịch làm việc của bác sĩ
+DROP TABLE IF EXISTS work_shift_time_slots;      -- Bảng liên kết ca làm việc và time slots
+DROP TABLE IF EXISTS time_slots;                 -- Bảng time slots cố định
+DROP TABLE IF EXISTS work_shifts;                -- Bảng ca làm việc
+DROP TABLE IF EXISTS doctor_profile;             -- Bảng thông tin chi tiết bác sĩ
+DROP TABLE IF EXISTS users;                      -- Bảng người dùng
+DROP TABLE IF EXISTS roles;                      -- Bảng vai trò
+
+-- Kích hoạt lại kiểm tra khóa ngoại
+SET REFERENTIAL_INTEGRITY TRUE;
+
+-- Bảng 1: Vai trò người dùng
+CREATE TABLE roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,           -- Mã vai trò: Khóa chính, tự động tăng
+    name VARCHAR(50) NOT NULL UNIQUE            -- Tên vai trò: Tên vai trò trong hệ thống (ví dụ: Bệnh nhân, Bác sĩ, Y tá, Quản trị viên)
+);
+
+-- Dữ liệu mẫu cho roles
+INSERT INTO roles (name) VALUES 
+('Admin'),          -- id = 1
+('Doctor'),         -- id = 2  
+('Patient'),        -- id = 3
+('Staff'),          -- id = 4
+('Manager');        -- id = 5
+
+-- Bảng 2: Người dùng hệ thống (bao gồm tất cả các đối tượng: bệnh nhân, bác sĩ, y tá, quản trị viên)
+CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã người dùng: Khóa chính, tự động tăng
+    username VARCHAR(50) NOT NULL UNIQUE,        -- Tên đăng nhập: Dùng để đăng nhập vào hệ thống, không được trùng lặp
+    email VARCHAR(100) UNIQUE,                   -- Email: Địa chỉ email của người dùng, có thể để trống nếu đăng ký ẩn danh
+    password VARCHAR(255) NOT NULL,              -- Mật khẩu: Được mã hóa (hash) trước khi lưu vào database
+    full_name VARCHAR(100),                      -- Họ và tên: Tên đầy đủ của người dùng
+    gender VARCHAR(10),                          -- Giới tính: Nam, Nữ hoặc Khác
+    phone_number VARCHAR(15) UNIQUE,             -- Số điện thoại: Dùng để liên hệ và xác thực, không được trùng lặp
+    date_of_birth DATE,                          -- Ngày sinh: Ngày tháng năm sinh của người dùng
+    address TEXT,                                -- Địa chỉ: Nơi cư trú hiện tại của người dùng
+    profile_image VARCHAR(255),                  -- Ảnh đại diện: Đường dẫn đến file ảnh đại diện của người dùng
+    role_id INT NOT NULL,                        -- Mã vai trò: Xác định vai trò của người dùng trong hệ thống (liên kết với bảng roles)
+    is_active BOOLEAN DEFAULT TRUE,              -- Trạng thái hoạt động: TRUE nếu tài khoản đang hoạt động, FALSE nếu bị khóa
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo: Thời điểm tài khoản được tạo
+    FOREIGN KEY (role_id) REFERENCES roles(id)   -- Khóa ngoại: Liên kết với bảng roles để xác định vai trò của người dùng
+);
+
+-- Bảng 3: Thông tin chi tiết bác sĩ (mở rộng từ bảng users)
+CREATE TABLE doctor_profile (
+    doctor_id BIGINT PRIMARY KEY,                -- Mã bác sĩ: Khóa chính, cũng là khóa ngoại tham chiếu đến users.id
+    specialty VARCHAR(100) NOT NULL,             -- Chuyên khoa: Lĩnh vực chuyên môn của bác sĩ (ví dụ: HIV/AIDS, Nội khoa, Truyền nhiễm)
+    qualification VARCHAR(200),                  -- Bằng cấp: Thông tin về trình độ chuyên môn, bằng cấp của bác sĩ
+    experience INT,                              -- Kinh nghiệm: Số năm kinh nghiệm làm việc trong lĩnh vực y tế
+    bio TEXT,                                    -- Tiểu sử: Thông tin giới thiệu về bác sĩ, quá trình công tác, thành tựu
+    FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE CASCADE -- Khóa ngoại: Khi xóa thông tin người dùng, thông tin bác sĩ cũng bị xóa theo
+);
+-- Dữ liệu mẫu cho users
+INSERT INTO users (username, email, password, full_name, gender, phone_number, date_of_birth, address, role_id) VALUES 
+('admin', 'admin@hospital.com', '$2a$10$example', 'Quản trị viên', 'Nam', '0901234567', '1985-01-01', 'Hà Nội', 1),
+('doctor1', 'doctor1@hospital.com', '$2a$10$example', 'Bác sĩ Nguyễn Văn A', 'Nam', '0901234568', '1980-05-15', 'Hà Nội', 2),
+('patient1', 'patient1@hospital.com', '$2a$10$example', 'Bệnh nhân Trần Thị B', 'Nữ', '0901234569', '1990-10-20', 'Hà Nội', 3),
+('staff1', 'staff1@hospital.com', '$2a$10$example', 'Nhân viên Lê Văn C', 'Nam', '0901234570', '1988-03-10', 'Hà Nội', 4),
+('manager1', 'manager1@hospital.com', '$2a$10$example', 'Quản lý Phạm Thị D', 'Nữ', '0901234571', '1983-07-25', 'Hà Nội', 5);
+
+-- Dữ liệu mẫu cho doctor_profile
+INSERT INTO doctor_profile (doctor_id, specialty, qualification, experience, bio) VALUES
+(2, 'HIV/AIDS', 'Bác sĩ chuyên khoa I', 10, 'Chuyên gia điều trị HIV/AIDS với hơn 10 năm kinh nghiệm.');
+
+-- ========================================
+-- LUỒNG QUẢN LÝ LỊCH LÀM VIỆC VÀ ĐẶT LỊCH HẸN
+-- ========================================
+
+-- Bước 1: Tạo các ca làm việc có sẵn (templates)
+CREATE TABLE work_shifts (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã ca làm việc: Khóa chính, tự động tăng
+    shift_name VARCHAR(100) NOT NULL,            -- Tên ca làm việc
+    start_time TIME NOT NULL,                    -- Giờ bắt đầu ca
+    end_time TIME NOT NULL,                      -- Giờ kết thúc ca
+    break_start TIME,                            -- Giờ bắt đầu nghỉ giữa ca (có thể NULL)
+    break_end TIME,                              -- Giờ kết thúc nghỉ giữa ca (có thể NULL)
+    description TEXT,                            -- Mô tả ca làm việc
+    is_active BOOLEAN DEFAULT TRUE,              -- Trạng thái kích hoạt
+    CONSTRAINT unique_shift_name UNIQUE (shift_name) -- Đảm bảo tên ca làm việc không trùng lặp
+);
+
+-- Bước 2: Tạo các time slots cố định (30 phút mỗi slot)
+CREATE TABLE time_slots (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã slot thời gian: Khóa chính, tự động tăng
+    start_time TIME NOT NULL,                    -- Giờ bắt đầu của slot
+    end_time TIME NOT NULL,                      -- Giờ kết thúc của slot
+    CONSTRAINT unique_time_slot UNIQUE (start_time, end_time) -- Đảm bảo không trùng lặp slot
+);
+
+-- Bước 3: Liên kết ca làm việc với time slots (loại trừ giờ nghỉ)
+CREATE TABLE work_shift_time_slots (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã liên kết: Khóa chính, tự động tăng
+    work_shift_id BIGINT NOT NULL,               -- Mã ca làm việc
+    time_slot_id BIGINT NOT NULL,                -- Mã slot thời gian
+    FOREIGN KEY (work_shift_id) REFERENCES work_shifts(id) ON DELETE CASCADE,
+    FOREIGN KEY (time_slot_id) REFERENCES time_slots(id) ON DELETE CASCADE,
+    CONSTRAINT unique_work_shift_time_slot UNIQUE (work_shift_id, time_slot_id) -- Đảm bảo không trùng lặp liên kết
+);
+
+-- Bước 4: Manager tạo lịch làm việc cho bác sĩ
+CREATE TABLE doctor_schedule (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã lịch: Khóa chính, tự động tăng
+    doctor_id BIGINT NOT NULL,                   -- Mã bác sĩ: Bác sĩ sở hữu lịch làm việc này
+    schedule_date DATE NOT NULL,                 -- Ngày làm việc: Ngày cụ thể bác sĩ làm việc
+    work_shift_id BIGINT NOT NULL,               -- Mã ca làm việc: Liên kết với bảng ca làm việc có sẵn
+    notes TEXT,                                  -- Ghi chú về lịch làm việc
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo lịch
+    FOREIGN KEY (doctor_id) REFERENCES doctor_profile(doctor_id) ON DELETE CASCADE, -- Khóa ngoại: Liên kết với bảng doctor_profile
+    FOREIGN KEY (work_shift_id) REFERENCES work_shifts(id), -- Khóa ngoại: Liên kết với bảng ca làm việc
+    CONSTRAINT unique_doctor_schedule UNIQUE (doctor_id, schedule_date, work_shift_id) -- Ràng buộc: Đảm bảo không trùng lặp lịch làm việc
+);
+
+-- Bước 5: Hệ thống tự động tạo các slot thời gian khả dụng từ lịch bác sĩ
+CREATE TABLE appointment_slots (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã slot: Khóa chính, tự động tăng
+    doctor_schedule_id BIGINT NOT NULL,          -- Mã lịch làm việc của bác sĩ
+    time_slot_id BIGINT NOT NULL,                -- Liên kết đến slot thời gian cố định (30 phút)
+    doctor_id BIGINT NOT NULL,                   -- Mã bác sĩ: Copy từ doctor_schedule để dễ query
+    is_available BOOLEAN DEFAULT TRUE,           -- Trạng thái khả dụng của slot
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo
+    FOREIGN KEY (doctor_schedule_id) REFERENCES doctor_schedule(id) ON DELETE CASCADE, -- Khóa ngoại: Nếu lịch bác sĩ bị xóa, slot cũng bị xóa
+    FOREIGN KEY (time_slot_id) REFERENCES time_slots(id), -- Khóa ngoại: Liên kết với bảng time_slots
+    FOREIGN KEY (doctor_id) REFERENCES doctor_profile(doctor_id) ON DELETE CASCADE, -- Khóa ngoại: Liên kết với bác sĩ
+    CONSTRAINT unique_doctor_time_slot UNIQUE (doctor_schedule_id, time_slot_id) -- Đảm bảo không trùng lặp slot cho cùng một lịch
+);
+
+-- Bước 6: Bệnh nhân đặt lịch hẹn trên slot khả dụng
+CREATE TABLE appointment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã lịch hẹn: Khóa chính, tự động tăng
+    patient_id BIGINT,                           -- Mã bệnh nhân: Người đặt lịch hẹn, có thể NULL nếu đặt ẩn danh
+    doctor_id BIGINT NOT NULL,                   -- Mã bác sĩ: Copy từ appointment_slot để dễ query
+    appointment_slot_id BIGINT NOT NULL,         -- Mã slot: Liên kết với slot thời gian cụ thể
+    appointment_type VARCHAR(100) NOT NULL,      -- Loại lịch hẹn: 'Tư vấn', 'Khám bệnh', 'Xét nghiệm', 'Tái khám'...
+    status VARCHAR(50) DEFAULT 'Chờ xác nhận',  -- Trạng thái: 'Chờ xác nhận', 'Đã xác nhận', 'Đã hủy', 'Đã hoàn thành', 'Vắng mặt'
+    is_anonymous BOOLEAN DEFAULT FALSE,          -- Đặt lịch ẩn danh: TRUE nếu bệnh nhân muốn giữ bí mật thông tin
+    symptoms TEXT,                               -- Triệu chứng: Mô tả các triệu chứng bệnh lý của bệnh nhân
+    notes TEXT,                                  -- Ghi chú: Thông tin bổ sung từ bệnh nhân hoặc bác sĩ
+    cancellation_reason TEXT,                    -- Lý do hủy: Lý do nếu lịch hẹn bị hủy
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo: Thời điểm lịch hẹn được đặt
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Thời gian cập nhật
+    FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE SET NULL, -- Khóa ngoại: Nếu bệnh nhân bị xóa, lịch hẹn vẫn giữ lại nhưng không liên kết với bệnh nhân nào
+    FOREIGN KEY (doctor_id) REFERENCES doctor_profile(doctor_id) ON DELETE CASCADE, -- Khóa ngoại: Liên kết với bác sĩ
+    FOREIGN KEY (appointment_slot_id) REFERENCES appointment_slots(id) ON DELETE CASCADE -- Khóa ngoại: Nếu slot bị xóa, lịch hẹn cũng bị xóa
+);
+
+-- Dữ liệu mẫu cho các ca làm việc có sẵn
+INSERT INTO work_shifts (shift_name, start_time, end_time, break_start, break_end, description) VALUES
+('Ca làm việc 8 tiếng (8h-16h)', '08:00:00', '16:00:00', '12:00:00', '13:00:00', 'Ca làm việc 8 tiếng từ 8h đến 16h, nghỉ trưa 1 tiếng'),
+('Ca làm việc 8 tiếng (9h-17h)', '09:00:00', '17:00:00', '12:00:00', '13:00:00', 'Ca làm việc 8 tiếng từ 9h đến 17h, nghỉ trưa 1 tiếng'),
+('Ca làm việc 7 tiếng (13h-20h)', '13:00:00', '20:00:00', '16:00:00', '17:00:00', 'Ca làm việc 7 tiếng từ 13h đến 20h, nghỉ 1 tiếng giữa ca'),
+('Ca làm việc 10 tiếng (8h-18h)', '08:00:00', '18:00:00', '12:00:00', '13:00:00', 'Ca làm việc 10 tiếng từ 8h đến 18h, nghỉ trưa 1 tiếng'),
+('Ca làm việc 9 tiếng (8h-17h)', '08:00:00', '17:00:00', '12:00:00', '13:00:00', 'Ca làm việc 9 tiếng từ 8h đến 17h, nghỉ trưa 1 tiếng'),
+('Ca làm việc 4 tiếng sáng (8h-12h)', '08:00:00', '12:00:00', NULL, NULL, 'Ca làm việc 4 tiếng buổi sáng, không có giờ nghỉ'),
+('Ca làm việc 4 tiếng chiều (13h-17h)', '13:00:00', '17:00:00', NULL, NULL, 'Ca làm việc 4 tiếng buổi chiều, không có giờ nghỉ'),
+('Ca làm việc 3 tiếng tối (17h-20h)', '17:00:00', '20:00:00', NULL, NULL, 'Ca làm việc 3 tiếng buổi tối, không có giờ nghỉ'),
+('Ca làm việc 6 tiếng (8h-14h)', '08:00:00', '14:00:00', '11:00:00', '11:30:00', 'Ca làm việc 6 tiếng từ 8h đến 14h, nghỉ 30 phút giữa ca'),
+('Ca làm việc 6 tiếng (14h-20h)', '14:00:00', '20:00:00', '17:00:00', '17:30:00', 'Ca làm việc 6 tiếng từ 14h đến 20h, nghỉ 30 phút giữa ca'),
+('Ca làm việc 12 tiếng (8h-20h)', '08:00:00', '20:00:00', '12:00:00', '14:00:00', 'Ca làm việc 12 tiếng từ 8h đến 20h, nghỉ 2 tiếng giữa ca');
+
+-- Dữ liệu mẫu cho các slot thời gian cố định (từ 8:00 đến 20:00, mỗi slot 30 phút)
+INSERT INTO time_slots (start_time, end_time) VALUES 
+('08:00:00', '08:30:00'),
+('08:30:00', '09:00:00'),
+('09:00:00', '09:30:00'),
+('09:30:00', '10:00:00'),
+('10:00:00', '10:30:00'),
+('10:30:00', '11:00:00'),
+('11:00:00', '11:30:00'),
+('11:30:00', '12:00:00'),
+('12:00:00', '12:30:00'),
+('12:30:00', '13:00:00'),
+('13:00:00', '13:30:00'),
+('13:30:00', '14:00:00'),
+('14:00:00', '14:30:00'),
+('14:30:00', '15:00:00'),
+('15:00:00', '15:30:00'),
+('15:30:00', '16:00:00'),
+('16:00:00', '16:30:00'),
+('16:30:00', '17:00:00'),
+('17:00:00', '17:30:00'),
+('17:30:00', '18:00:00'),
+('18:00:00', '18:30:00'),
+('18:30:00', '19:00:00'),
+('19:00:00', '19:30:00'),
+('19:30:00', '20:00:00');
+
+-- Thêm dữ liệu mẫu cho bảng work_shift_time_slots
+-- Ca làm việc 8h-16h: Từ 8h đến 16h, trừ giờ nghỉ trưa 12h-13h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 1, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '08:00:00' AND ts.end_time <= '12:00:00') 
+   OR (ts.start_time >= '13:00:00' AND ts.end_time <= '16:00:00');
+
+-- Ca làm việc 9h-17h: Từ 9h đến 17h, trừ giờ nghỉ trưa 12h-13h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 2, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '09:00:00' AND ts.end_time <= '12:00:00') 
+   OR (ts.start_time >= '13:00:00' AND ts.end_time <= '17:00:00');
+
+-- Ca làm việc 13h-20h: Từ 13h đến 20h, trừ giờ nghỉ 16h-17h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 3, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '13:00:00' AND ts.end_time <= '16:00:00') 
+   OR (ts.start_time >= '17:00:00' AND ts.end_time <= '20:00:00');
+
+-- Ca làm việc 8h-18h: Từ 8h đến 18h, trừ giờ nghỉ trưa 12h-13h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 4, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '08:00:00' AND ts.end_time <= '12:00:00') 
+   OR (ts.start_time >= '13:00:00' AND ts.end_time <= '18:00:00');
+
+-- Ca làm việc 8h-17h: Từ 8h đến 17h, trừ giờ nghỉ trưa 12h-13h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 5, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '08:00:00' AND ts.end_time <= '12:00:00') 
+   OR (ts.start_time >= '13:00:00' AND ts.end_time <= '17:00:00');
+
+-- Ca làm việc 8h-12h: Từ 8h đến 12h, không có giờ nghỉ
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 6, ts.id 
+FROM time_slots ts 
+WHERE ts.start_time >= '08:00:00' AND ts.end_time <= '12:00:00';
+
+-- Ca làm việc 13h-17h: Từ 13h đến 17h, không có giờ nghỉ
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 7, ts.id 
+FROM time_slots ts 
+WHERE ts.start_time >= '13:00:00' AND ts.end_time <= '17:00:00';
+
+-- Ca làm việc 17h-20h: Từ 17h đến 20h, không có giờ nghỉ
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 8, ts.id 
+FROM time_slots ts 
+WHERE ts.start_time >= '17:00:00' AND ts.end_time <= '20:00:00';
+
+-- Ca làm việc 8h-14h: Từ 8h đến 14h, trừ giờ nghỉ 11h-11:30h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 9, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '08:00:00' AND ts.end_time <= '11:00:00') 
+   OR (ts.start_time >= '11:30:00' AND ts.end_time <= '14:00:00');
+
+-- Ca làm việc 14h-20h: Từ 14h đến 20h, trừ giờ nghỉ 17h-17:30h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 10, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '14:00:00' AND ts.end_time <= '17:00:00') 
+   OR (ts.start_time >= '17:30:00' AND ts.end_time <= '20:00:00');
+
+-- Ca làm việc 8h-20h: Từ 8h đến 20h, trừ giờ nghỉ 12h-14h
+INSERT INTO work_shift_time_slots (work_shift_id, time_slot_id)
+SELECT 11, ts.id 
+FROM time_slots ts 
+WHERE (ts.start_time >= '08:00:00' AND ts.end_time <= '12:00:00') 
+   OR (ts.start_time >= '14:00:00' AND ts.end_time <= '20:00:00');
+
+-- ========================================
+-- DỮ LIỆU MẪU
+-- ========================================
+
+-- Dữ liệu mẫu: Manager tạo lịch làm việc cho bác sĩ
+INSERT INTO doctor_schedule (doctor_id, schedule_date, work_shift_id, notes) VALUES
+(2, DATE_ADD(CURRENT_DATE, INTERVAL 1 DAY), 1, 'Bác sĩ A làm ca 8h-16h'),
+(2, DATE_ADD(CURRENT_DATE, INTERVAL 2 DAY), 2, 'Bác sĩ A làm ca 9h-17h'),
+(2, DATE_ADD(CURRENT_DATE, INTERVAL 3 DAY), 6, 'Bác sĩ A làm ca sáng 8h-12h');
+
+-- ========================================
+-- LUỒNG HOẠT ĐỘNG CỦA HỆ THỐNG
+-- ========================================
+
+/*
+WORK_SHIFT_TIME_SLOTS ĐÃ ĐƯỢC TẠO SẴN:
+- Ca 8h-16h có 14 slots (loại trừ giờ nghỉ 12h-13h)
+- Ca 9h-17h có 15 slots (loại trừ giờ nghỉ 12h-13h)  
+- Ca 13h-20h có 13 slots (loại trừ giờ nghỉ 16h-17h)
+- Và tất cả các ca khác...
+
+1. MANAGER TẠO LỊCH BÁC SĨ:
+   - Manager chọn: doctor_id=2, date='2024-01-15', work_shift_id=1 (ca 8h-16h)
+   - Hệ thống lưu vào bảng doctor_schedule
+
+2. BACKEND TỰ ĐỘNG TẠO APPOINTMENT_SLOTS:
+   - Backend service tìm tất cả time_slot_id trong work_shift_time_slots có work_shift_id=1
+   - Ca 8h-16h có 14 slots: 08:00-08:30, 08:30-09:00, ..., 11:30-12:00, 13:00-13:30, ..., 15:30-16:00
+   - Tạo 14 bản ghi trong appointment_slots với doctor_schedule_id và time_slot_id tương ứng
+
+3. BỆNH NHÂN XEM SLOT KHẢD UNG:
+   - Frontend gọi API: GET /api/appointments/available-slots?doctorId=2&date=2024-01-15
+   - Backend query view available_appointment_slots 
+   - Trả về danh sách slot trống (chưa có appointment nào đặt)
+
+4. BỆNH NHÂN ĐẶT LỊCH:
+   - Bệnh nhân chọn slot 08:00-08:30, gọi API đặt lịch
+   - Backend tạo bản ghi trong bảng appointment với appointment_slot_id
+   - Slot này không còn hiển thị trong danh sách khả dụng nữa
+
+VÍ DỤ CỤ THỂ:
+- work_shift_time_slots có 14 bản ghi cho ca 8h-16h
+- doctor_schedule tạo 1 bản ghi
+- appointment_slots tự động tạo 14 bản ghi
+- Bệnh nhân thấy 14 slot trống, đặt 1 slot → còn 13 slot khả dụng
+*/
+
+-- View để hiển thị slot khả dụng cho bệnh nhân đặt lịch
+CREATE VIEW available_appointment_slots AS
+SELECT 
+    aslot.id as appointment_slot_id,
+    ds.schedule_date,
+    ts.start_time,
+    ts.end_time,
+    dp.doctor_id,
+    u.full_name as doctor_name,
+    dp.specialty,
+    ws.shift_name,
+    CASE 
+        WHEN app.id IS NULL THEN TRUE 
+        ELSE FALSE 
+    END as is_free
+FROM appointment_slots aslot
+JOIN doctor_schedule ds ON aslot.doctor_schedule_id = ds.id
+JOIN time_slots ts ON aslot.time_slot_id = ts.id
+JOIN work_shifts ws ON ds.work_shift_id = ws.id
+JOIN doctor_profile dp ON ds.doctor_id = dp.doctor_id
+JOIN users u ON dp.doctor_id = u.id
+LEFT JOIN appointment app ON aslot.id = app.appointment_slot_id 
+    AND app.status NOT IN ('Đã hủy', 'Vắng mặt')
+WHERE 
+    ds.schedule_date >= CURRENT_DATE 
+    AND aslot.is_available = TRUE
+ORDER BY ds.schedule_date, ts.start_time;
+
+-- ========================================
+-- CÁC BẢNG KHÁC TRONG HỆ THỐNG
+-- ========================================
+
+-- Bảng 4: Kết quả xét nghiệm
+CREATE TABLE lab_tests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã xét nghiệm: Khóa chính, tự động tăng
+    patient_id BIGINT NOT NULL,                 -- Mã bệnh nhân: Bệnh nhân thực hiện xét nghiệm
+    doctor_id BIGINT,                           -- Mã bác sĩ: Bác sĩ chỉ định xét nghiệm
+    test_date DATE NOT NULL,                    -- Ngày thực hiện xét nghiệm
+    test_type VARCHAR(100) NOT NULL,            -- Loại xét nghiệm (ví dụ: Xét nghiệm máu, nước tiểu, hình ảnh...)
+    result TEXT,                                -- Kết quả xét nghiệm: Có thể là văn bản mô tả hoặc đường dẫn đến file kết quả
+    status VARCHAR(50) DEFAULT 'Đang chờ',      -- Trạng thái xét nghiệm: 'Đang chờ', 'Đã hoàn thành', 'Đã hủy'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo bản ghi
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Thời gian cập nhật
+    FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE, -- Khóa ngoại: Nếu bệnh nhân bị xóa, các xét nghiệm liên quan cũng bị xóa
+    FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL -- Khóa ngoại: Nếu bác sĩ bị xóa, xét nghiệm vẫn được giữ lại
+);
+
+-- Bảng 5: Hồ sơ bệnh án
+CREATE TABLE medical_records (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã hồ sơ: Khóa chính, tự động tăng
+    patient_id BIGINT NOT NULL,                 -- Mã bệnh nhân: Bệnh nhân có hồ sơ bệnh án này
+    doctor_id BIGINT,                           -- Mã bác sĩ: Bác sĩ lập hồ sơ bệnh án
+    record_date DATE NOT NULL,                  -- Ngày lập hồ sơ
+    symptoms TEXT,                               -- Triệu chứng: Mô tả các triệu chứng bệnh lý của bệnh nhân
+    diagnosis TEXT,                             -- Chẩn đoán: Kết quả chẩn đoán của bác sĩ
+    treatment TEXT,                             -- Phác đồ điều trị: Các bước điều trị đã thực hiện hoặc dự kiến thực hiện
+    notes TEXT,                                  -- Ghi chú: Thông tin bổ sung từ bác sĩ hoặc nhân viên y tế
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo bản ghi
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Thời gian cập nhật
+    FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE, -- Khóa ngoại: Nếu bệnh nhân bị xóa, hồ sơ bệnh án cũng bị xóa
+    FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL -- Khóa ngoại: Nếu bác sĩ bị xóa, hồ sơ vẫn được giữ lại
+);
+
+-- Bảng 6: Thanh toán
+CREATE TABLE payments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã thanh toán: Khóa chính, tự động tăng
+    appointment_id BIGINT NOT NULL,              -- Mã lịch hẹn: Liên kết với lịch hẹn đã đặt
+    amount DECIMAL(10, 2) NOT NULL,             -- Số tiền: Giá trị thanh toán
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Ngày thanh toán
+    payment_method VARCHAR(50),                  -- Phương thức thanh toán (ví dụ: Tiền mặt, Chuyển khoản, Thẻ tín dụng...)
+    status VARCHAR(50) DEFAULT 'Đã thanh toán',  -- Trạng thái thanh toán: 'Đã thanh toán', 'Chưa thanh toán', 'Đã hoàn trả'
+    FOREIGN KEY (appointment_id) REFERENCES appointment(id) ON DELETE CASCADE -- Khóa ngoại: Nếu lịch hẹn bị xóa, thông tin thanh toán cũng bị xóa
+);
+
+-- Bảng 7: Thông báo
+CREATE TABLE notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,        -- Mã thông báo: Khóa chính, tự động tăng
+    user_id BIGINT NOT NULL,                    -- Mã người dùng: Người nhận thông báo
+    content TEXT NOT NULL,                      -- Nội dung thông báo
+    is_read BOOLEAN DEFAULT FALSE,              -- Trạng thái đã đọc: TRUE nếu đã đọc, FALSE nếu chưa đọc
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo thông báo
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE -- Khóa ngoại: Nếu người dùng bị xóa, thông báo cũng bị xóa
+);
+
+-- ========================================
+-- DỮ LIỆU MẪU CHO CÁC BẢNG KHÁC
+-- ========================================
+
+-- Dữ liệu mẫu cho bảng kết quả xét nghiệm
+INSERT INTO lab_tests (patient_id, doctor_id, test_date, test_type, result, status) VALUES
+(3, 2, '2024-01-10', 'Xét nghiệm máu', 'HIV âm tính', 'Đã hoàn thành'),
+(3, 2, '2024-01-10', 'Xét nghiệm nước tiểu', 'Bình thường', 'Đã hoàn thành'),
+(3, 2, '2024-01-10', 'Xét nghiệm hình ảnh', 'Không phát hiện bất thường', 'Đã hoàn thành'),
+(3, 2, '2024-01-10', 'Xét nghiệm gen', 'Không phát hiện virus', 'Đã hoàn thành'),
+(3, 2, '2024-01-10', 'Xét nghiệm kháng thể', 'Âm tính', 'Đã hoàn thành');
+
+-- Dữ liệu mẫu cho bảng hồ sơ bệnh án
+INSERT INTO medical_records (patient_id, doctor_id, record_date, symptoms, diagnosis, treatment, notes) VALUES
+(3, 2, '2024-01-10', 'Không có triệu chứng', 'Khỏe mạnh', 'Không cần điều trị', 'Bệnh nhân cần tái khám định kỳ sau 3 tháng');
+
+-- Dữ liệu mẫu cho bảng thanh toán
+INSERT INTO payments (appointment_id, amount, payment_date, payment_method, status) VALUES
+(1, 500000, '2024-01-10 10:00:00', 'Tiền mặt', 'Đã thanh toán'),
+(2, 300000, '2024-01-11 14:30:00', 'Chuyển khoản', 'Đã thanh toán'),
+(3, 700000, '2024-01-12 09:15:00', 'Thẻ tín dụng', 'Đã thanh toán');
+
+-- Dữ liệu mẫu cho bảng thông báo
+INSERT INTO notifications (user_id, content, is_read) VALUES
+(1, 'Lịch làm việc của bác sĩ A đã được cập nhật.', FALSE),
+(2, 'Bạn có lịch hẹn mới vào ngày 2024-01-15.', FALSE),
+(3, 'Kết quả xét nghiệm của bạn đã có, vui lòng kiểm tra.', TRUE),
+(4, 'Bạn đã được phân công lịch làm việc mới.', TRUE),
+(5, 'Có bệnh nhân mới đăng ký khám bệnh.', FALSE);
