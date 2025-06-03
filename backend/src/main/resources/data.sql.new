@@ -151,7 +151,6 @@ CREATE TABLE appointment (
     notes TEXT,                                  -- Ghi chú: Thông tin bổ sung từ bệnh nhân hoặc bác sĩ
     cancellation_reason TEXT,                    -- Lý do hủy: Lý do nếu lịch hẹn bị hủy
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo: Thời điểm lịch hẹn được đặt
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Thời gian cập nhật
     FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE SET NULL, -- Khóa ngoại: Nếu bệnh nhân bị xóa, lịch hẹn vẫn giữ lại nhưng không liên kết với bệnh nhân nào
     FOREIGN KEY (doctor_id) REFERENCES doctor_profile(doctor_id) ON DELETE CASCADE, -- Khóa ngoại: Liên kết với bác sĩ
     FOREIGN KEY (appointment_slot_id) REFERENCES appointment_slots(id) ON DELETE CASCADE -- Khóa ngoại: Nếu slot bị xóa, lịch hẹn cũng bị xóa

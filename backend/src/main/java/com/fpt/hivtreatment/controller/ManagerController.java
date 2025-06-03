@@ -16,6 +16,7 @@ import com.fpt.hivtreatment.dto.DoctorScheduleDTO;
 import com.fpt.hivtreatment.dto.UserResponse;
 import com.fpt.hivtreatment.model.entity.Role;
 import com.fpt.hivtreatment.payload.request.GenerateAppointmentSlotsRequest;
+import com.fpt.hivtreatment.service.AppointmentService;
 import com.fpt.hivtreatment.service.AppointmentSlotService;
 import com.fpt.hivtreatment.service.DoctorScheduleService;
 import com.fpt.hivtreatment.service.UserManagementService;
@@ -42,6 +43,7 @@ public class ManagerController {
     private final UserManagementService userManagementService;
     private final AppointmentSlotService appointmentSlotService;
     private final DoctorProfileRepository doctorProfileRepository;
+    private final AppointmentService appointmentService;
 
     /**
      * API lấy danh sách bác sĩ (từ bảng user)
@@ -326,6 +328,98 @@ public class ManagerController {
             logger.error("Lỗi khi lấy danh sách bác sĩ từ bảng doctor_profile", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy danh sách bác sĩ: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * API lấy thống kê lịch hẹn
+     */
+    @GetMapping("/appointment-stats")
+    public ResponseEntity<?> getAppointmentStatistics() {
+        logger.info("Nhận yêu cầu lấy thống kê lịch hẹn");
+
+        try {
+            Map<String, Object> stats = new HashMap<>();
+
+            // Lấy số lượng lịch hẹn theo trạng thái
+            long pendingCount = appointmentService.countAppointmentsByStatus("Chờ xác nhận");
+            long approvedCount = appointmentService.countAppointmentsByStatus("Đã xác nhận");
+            long cancelledCount = appointmentService.countAppointmentsByStatus("Đã hủy");
+            long completedCount = appointmentService.countAppointmentsByStatus("Hoàn thành");
+
+            // Tính tổng số lịch hẹn
+            long totalCount = pendingCount + approvedCount + cancelledCount + completedCount;
+
+            // Đóng gói kết quả
+            stats.put("pendingCount", pendingCount);
+            stats.put("approvedCount", approvedCount);
+            stats.put("cancelledCount", cancelledCount);
+            stats.put("completedCount", completedCount);
+            stats.put("totalCount", totalCount);
+
+            logger.info("Thống kê lịch hẹn: chờ xác nhận={}, đã xác nhận={}, đã hủy={}, hoàn thành={}, tổng={}",
+                    pendingCount, approvedCount, cancelledCount, completedCount, totalCount);
+
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            logger.error("Lỗi khi lấy thống kê lịch hẹn", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khi lấy thống kê lịch hẹn: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * API lấy danh sách lịch hẹn theo trạng thái hoặc khoảng thời gian
+     */
+    @GetMapping("/appointments")
+    public ResponseEntity<?> getAppointments(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "5") int limit) {
+
+        logger.info(
+                "Nhận yêu cầu lấy danh sách lịch hẹn với status={}, startDate={}, endDate={}, page={}, size={}, limit={}",
+                status, startDate, endDate, page, size, limit);
+
+        try {
+            Map<String, Object> result = appointmentService.getAppointmentsForManager(status, startDate, endDate, page,
+                    size, limit);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Lỗi khi lấy danh sách lịch hẹn", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khi lấy danh sách lịch hẹn: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * API cập nhật trạng thái lịch hẹn
+     */
+    @PutMapping("/appointments/{id}/status")
+    public ResponseEntity<?> updateAppointmentStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> statusUpdate) {
+
+        String status = statusUpdate.get("status");
+        String cancellationReason = statusUpdate.get("cancellationReason");
+
+        logger.info("Nhận yêu cầu cập nhật trạng thái lịch hẹn id={} thành {}, lý do={}",
+                id, status, cancellationReason);
+
+        try {
+            Map<String, Object> result = appointmentService.updateAppointmentStatus(id, status, cancellationReason);
+            return ResponseEntity.ok(result);
+        } catch (ResourceNotFoundException e) {
+            logger.error("Không tìm thấy lịch hẹn để cập nhật: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Không tìm thấy lịch hẹn: " + e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Lỗi khi cập nhật trạng thái lịch hẹn", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khi cập nhật trạng thái lịch hẹn: " + e.getMessage()));
         }
     }
 }

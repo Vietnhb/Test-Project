@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fpt.hivtreatment.dto.LoginRequest;
 import com.fpt.hivtreatment.dto.RegisterRequest;
 import com.fpt.hivtreatment.dto.UserResponse;
+import com.fpt.hivtreatment.security.services.UserDetailsImpl;
 import com.fpt.hivtreatment.service.AuthService;
 
 import jakarta.validation.Valid;
@@ -42,6 +45,44 @@ public class AuthController {
         response.put("status", "UP");
         response.put("message", "Auth service is running");
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint để kiểm tra xác thực và lấy thông tin người dùng hiện tại
+     * Yêu cầu phải có JWT token hợp lệ
+     * 
+     * @return Thông tin của người dùng đang đăng nhập
+     */
+    @GetMapping("/user")
+    public ResponseEntity<?> getCurrentUser() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+            if (authentication != null && authentication.isAuthenticated() &&
+                    authentication.getPrincipal() instanceof UserDetailsImpl) {
+
+                UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+                logger.info("Current authenticated user: {}, ID: {}", userDetails.getUsername(), userDetails.getId());
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("id", userDetails.getId());
+                response.put("username", userDetails.getUsername());
+                response.put("email", userDetails.getEmail());
+                response.put("fullName", userDetails.getFullName());
+                response.put("authorities", userDetails.getAuthorities());
+                response.put("authenticated", true);
+
+                return ResponseEntity.ok(response);
+            } else {
+                logger.warn("Authentication context found but user not properly authenticated");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(errorResponse("User not authenticated"));
+            }
+        } catch (Exception e) {
+            logger.error("Error retrieving current user: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(errorResponse("Error retrieving current user: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/login")

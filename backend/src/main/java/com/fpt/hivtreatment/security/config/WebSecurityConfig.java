@@ -43,11 +43,26 @@ public class WebSecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    // Debug endpoints - no authentication required
+                    auth.requestMatchers("/debug/**").permitAll();
+                    auth.requestMatchers("/api/debug/**").permitAll();
+                    auth.requestMatchers("/debug/database-tables").permitAll();
+                    auth.requestMatchers("/api/debug/database-tables").permitAll();
+
                     // Public endpoints
                     auth.requestMatchers("/api/auth/**").permitAll();
                     auth.requestMatchers("/api/public/**").permitAll();
                     auth.requestMatchers("/api/doctors/**").permitAll();
                     auth.requestMatchers("/api/test-data/**").permitAll();
+                    auth.requestMatchers("/appointments/test").permitAll();
+
+
+
+                    // Thêm các đường dẫn /api/... tương ứng
+                    auth.requestMatchers("/api/appointments").authenticated();
+                    auth.requestMatchers("/api/appointments/**").authenticated();
+                    auth.requestMatchers("/api/patient/appointments").authenticated();
+                    auth.requestMatchers("/api/doctor/appointments").authenticated();
 
                     // Admin and Manager only endpoints
                     auth.requestMatchers("/api/admin/**").hasAnyAuthority("4", "5");
@@ -62,6 +77,7 @@ public class WebSecurityConfig {
 
                     // Manager-only endpoints
                     auth.requestMatchers("/api/manager/**").hasAuthority("5");
+                    auth.requestMatchers("/manager/**").hasAuthority("5");
 
                     // Authenticated endpoints (all users)
                     auth.requestMatchers("/api/profile/**").authenticated();

@@ -27,14 +27,13 @@ import jakarta.validation.Valid;
  */
 @RestController
 @RequestMapping("/api/admin")
-@PreAuthorize("hasAnyAuthority('4', '5')") // Admin (role_id = 4) hoặc Manager (role_id = 5) có quyền truy cập
+@PreAuthorize("hasAuthority('4')") // Chỉ Admin (role_id = 4) có quyền truy cập
 public class AdminController {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
     @Autowired
     private UserManagementService adminService;
-
 
     private ResponseEntity<?> createErrorResponse(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of("message", message));
@@ -227,4 +226,5 @@ public class AdminController {
             return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Lỗi khi lấy thông tin tổng quan: " + e.getMessage());
         }
-    }}
+    }
+}

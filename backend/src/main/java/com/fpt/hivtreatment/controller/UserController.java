@@ -53,31 +53,31 @@ public class UserController {
     }
 
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('4')")
+    @PreAuthorize("hasAuthority('4')")
     public ResponseEntity<?> adminAccess() {
         return ResponseEntity.ok(Map.of("message", "Admin Content"));
     }
 
     @GetMapping("/doctor")
-    @PreAuthorize("hasRole('2')")
+    @PreAuthorize("hasAuthority('2')")
     public ResponseEntity<?> doctorAccess() {
         return ResponseEntity.ok(Map.of("message", "Doctor Content"));
     }
 
     @GetMapping("/staff")
-    @PreAuthorize("hasRole('3')")
+    @PreAuthorize("hasAuthority('3')")
     public ResponseEntity<?> staffAccess() {
         return ResponseEntity.ok(Map.of("message", "Staff Content"));
     }
 
     @GetMapping("/patient")
-    @PreAuthorize("hasRole('1')")
+    @PreAuthorize("hasAuthority('1')")
     public ResponseEntity<?> patientAccess() {
         return ResponseEntity.ok(Map.of("message", "Patient Content"));
     }
 
     @GetMapping("/manager")
-    @PreAuthorize("hasRole('5')")
+    @PreAuthorize("hasAuthority('5')")
     public ResponseEntity<?> managerAccess() {
         return ResponseEntity.ok(Map.of("message", "Manager Content"));
     }
