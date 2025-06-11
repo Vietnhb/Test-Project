@@ -19,10 +19,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import com.fpt.hivtreatment.security.services.UserDetailsServiceImpl;
 
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Component
-@Slf4j
 @NoArgsConstructor
 public class AuthTokenFilter extends OncePerRequestFilter {
 
@@ -37,25 +35,26 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         try {
-            log.debug("Processing request: {} {}", request.getMethod(), request.getRequestURI());
+            String requestURI = request.getRequestURI();
 
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
-                log.debug("JWT valid for user: {}", username);
+            if (jwt != null) {
+                if (jwtUtils.validateJwtToken(jwt)) {
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("Set authentication in SecurityContext for '{}'", username);
-            } else {
-                log.debug("No valid JWT found, continuing unauthenticated");
+                    if (userDetails != null) {
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                }
             }
         } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage(), e);
+            // Cannot set user authentication
         }
 
         filterChain.doFilter(request, response);
@@ -65,7 +64,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         String headerAuth = request.getHeader("Authorization");
 
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
-            return headerAuth.substring(7);
+            String token = headerAuth.substring(7);
+            return token;
         }
 
         return null;

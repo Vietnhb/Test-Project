@@ -26,4 +26,6 @@ public interface DoctorScheduleRepository extends JpaRepository<DoctorSchedule, 
     long countByDoctor(DoctorProfile doctor);
 
     long countByScheduleDate(LocalDate date);
+
+    List<DoctorSchedule> findByScheduleDateBetween(LocalDate startDate, LocalDate endDate);
 }

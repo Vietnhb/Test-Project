@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +14,7 @@ import com.fpt.hivtreatment.dto.DoctorScheduleDTO;
 import com.fpt.hivtreatment.dto.UserResponse;
 import com.fpt.hivtreatment.model.entity.Role;
 import com.fpt.hivtreatment.payload.request.GenerateAppointmentSlotsRequest;
+import com.fpt.hivtreatment.service.AppointmentService;
 import com.fpt.hivtreatment.service.AppointmentSlotService;
 import com.fpt.hivtreatment.service.DoctorScheduleService;
 import com.fpt.hivtreatment.service.UserManagementService;
@@ -36,12 +35,11 @@ import lombok.RequiredArgsConstructor;
 @PreAuthorize("hasAuthority('5')") // Manager (role_id = 5) có quyền truy cập
 public class ManagerController {
 
-    private static final Logger logger = LoggerFactory.getLogger(ManagerController.class);
-
     private final DoctorScheduleService doctorScheduleService;
     private final UserManagementService userManagementService;
     private final AppointmentSlotService appointmentSlotService;
     private final DoctorProfileRepository doctorProfileRepository;
+    private final AppointmentService appointmentService;
 
     /**
      * API lấy danh sách bác sĩ (từ bảng user)
@@ -50,8 +48,6 @@ public class ManagerController {
     public ResponseEntity<?> getAllDoctors(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-
-        logger.info("Nhận yêu cầu lấy danh sách bác sĩ từ bảng user");
 
         try {
             // Tạo bộ lọc để lấy chỉ các user có vai trò là bác sĩ
@@ -63,16 +59,6 @@ public class ManagerController {
             List<UserResponse> doctors = userManagementService.getAllUsers(filters, page, size);
             long total = userManagementService.countUsers(filters);
 
-            // Log chi tiết về danh sách bác sĩ
-            logger.info("Tìm thấy {} bác sĩ", doctors.size());
-            for (UserResponse doctor : doctors) {
-                logger.info("Doctor: ID={}, Username={}, Name={}, RoleID={}",
-                        doctor.getId(),
-                        doctor.getUsername(),
-                        doctor.getFullName(),
-                        doctor.getRoleId());
-            }
-
             // Tạo response
             Map<String, Object> response = new HashMap<>();
             response.put("doctors", doctors);
@@ -82,7 +68,6 @@ public class ManagerController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy danh sách bác sĩ từ bảng user", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy danh sách bác sĩ: " + e.getMessage()));
         }
@@ -93,33 +78,23 @@ public class ManagerController {
      */
     @PostMapping("/doctor-schedules")
     public ResponseEntity<?> createDoctorSchedule(@Valid @RequestBody DoctorScheduleDTO scheduleDTO) {
-        logger.info("Nhận yêu cầu tạo lịch làm việc cho bác sĩ với id: {}", scheduleDTO.getDoctorId());
-        logger.info("Chi tiết yêu cầu: {}", scheduleDTO);
-
         try {
             DoctorScheduleDTO createdSchedule = doctorScheduleService.createDoctorSchedule(scheduleDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdSchedule);
         } catch (Exception e) {
-            logger.error("Lỗi khi tạo lịch làm việc cho bác sĩ", e);
-            logger.error("Chi tiết lỗi: {}", e.getMessage());
-
             // Kiểm tra và log chi tiết hơn về các loại lỗi phổ biến
             if (e instanceof IllegalArgumentException) {
-                logger.error("Dữ liệu không hợp lệ: {}", e.getMessage());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("message", "Dữ liệu không hợp lệ: " + e.getMessage()));
             } else if (e.getMessage() != null && e.getMessage().contains("doctor_id")) {
-                logger.error("ID bác sĩ không hợp lệ: {}", scheduleDTO.getDoctorId());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("message", "ID bác sĩ không tồn tại hoặc không hợp lệ",
                                 "details", e.getMessage()));
             } else if (e.getMessage() != null && e.getMessage().contains("work_shift_id")) {
-                logger.error("ID ca làm việc không hợp lệ: {}", scheduleDTO.getWorkShiftId());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("message", "ID ca làm việc không tồn tại hoặc không hợp lệ",
                                 "details", e.getMessage()));
             } else if (e.getMessage() != null && e.getMessage().contains("date")) {
-                logger.error("Ngày không hợp lệ: {}", scheduleDTO.getScheduleDate());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("message", "Ngày làm việc không hợp lệ hoặc định dạng không đúng",
                                 "details", e.getMessage()));
@@ -140,8 +115,6 @@ public class ManagerController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        logger.info("Nhận yêu cầu lấy lịch làm việc của bác sĩ với id: {}, ngày: {}", doctorId, date);
-
         try {
             List<DoctorScheduleDTO> schedules = doctorScheduleService.getDoctorSchedules(doctorId, date, page, size);
             long total = doctorScheduleService.countDoctorSchedules(doctorId, date);
@@ -154,7 +127,6 @@ public class ManagerController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy lịch làm việc của bác sĩ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy lịch làm việc của bác sĩ: " + e.getMessage()));
         }
@@ -169,16 +141,12 @@ public class ManagerController {
             @RequestParam(required = true) String startDate,
             @RequestParam(required = true) String endDate) {
 
-        logger.info("Nhận yêu cầu lấy lịch làm việc của bác sĩ với id: {}, từ ngày: {} đến ngày: {}",
-                doctorId, startDate, endDate);
-
         try {
             List<DoctorScheduleDTO> schedules = doctorScheduleService.getDoctorSchedulesByDateRange(
                     doctorId, startDate, endDate);
 
             return ResponseEntity.ok(schedules);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy lịch làm việc của bác sĩ theo khoảng thời gian", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy lịch làm việc của bác sĩ: " + e.getMessage()));
         }
@@ -189,17 +157,13 @@ public class ManagerController {
      */
     @DeleteMapping("/doctor-schedules/{id}")
     public ResponseEntity<?> deleteDoctorSchedule(@PathVariable Long id) {
-        logger.info("Nhận yêu cầu xóa lịch làm việc với id: {}", id);
-
         try {
             doctorScheduleService.deleteDoctorSchedule(id);
             return ResponseEntity.ok().body(Map.of("message", "Xóa lịch làm việc thành công"));
         } catch (ResourceNotFoundException e) {
-            logger.error("Không tìm thấy lịch làm việc để xóa: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "Không tìm thấy lịch làm việc: " + e.getMessage()));
         } catch (Exception e) {
-            logger.error("Lỗi khi xóa lịch làm việc: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi xóa lịch làm việc: " + e.getMessage()));
         }
@@ -213,8 +177,6 @@ public class ManagerController {
             @PathVariable Long id,
             @Valid @RequestBody DoctorScheduleDTO scheduleDTO) {
 
-        logger.info("Nhận yêu cầu cập nhật lịch làm việc với id: {}", id);
-
         try {
             // Đảm bảo ID trong path và body trùng khớp
             if (!id.equals(scheduleDTO.getId())) {
@@ -225,11 +187,9 @@ public class ManagerController {
             DoctorScheduleDTO updatedSchedule = doctorScheduleService.updateDoctorSchedule(id, scheduleDTO);
             return ResponseEntity.ok(updatedSchedule);
         } catch (ResourceNotFoundException e) {
-            logger.error("Không tìm thấy lịch làm việc để cập nhật: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "Không tìm thấy lịch làm việc: " + e.getMessage()));
         } catch (Exception e) {
-            logger.error("Lỗi khi cập nhật lịch làm việc: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi cập nhật lịch làm việc: " + e.getMessage()));
         }
@@ -240,8 +200,6 @@ public class ManagerController {
      */
     @PostMapping("/appointment-slots/generate")
     public ResponseEntity<?> generateAppointmentSlots(@Valid @RequestBody GenerateAppointmentSlotsRequest request) {
-        logger.info("Nhận yêu cầu tạo các slot khám bệnh cho lịch bác sĩ: {}", request.getDoctor_schedule_id());
-
         try {
             List<AppointmentSlotDTO> createdSlots = appointmentSlotService.generateAppointmentSlots(request);
 
@@ -252,7 +210,6 @@ public class ManagerController {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
-            logger.error("Lỗi khi tạo các slot khám bệnh", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", "Lỗi khi tạo các slot khám bệnh: " + e.getMessage()));
         }
@@ -263,8 +220,6 @@ public class ManagerController {
      */
     @GetMapping("/appointment-slots/by-schedule/{doctorScheduleId}")
     public ResponseEntity<?> getAppointmentSlotsBySchedule(@PathVariable Long doctorScheduleId) {
-        logger.info("Nhận yêu cầu lấy danh sách slot khám bệnh theo lịch bác sĩ ID: {}", doctorScheduleId);
-
         try {
             List<AppointmentSlotDTO> slots = appointmentSlotService.getSlotsByScheduleId(doctorScheduleId);
 
@@ -274,7 +229,6 @@ public class ManagerController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy danh sách slot khám bệnh", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy danh sách slot khám bệnh: " + e.getMessage()));
         }
@@ -285,8 +239,6 @@ public class ManagerController {
      */
     @GetMapping("/dashboard")
     public ResponseEntity<?> getDashboardOverview() {
-        logger.info("Nhận yêu cầu lấy tổng quan dashboard cho manager");
-
         try {
             // Lấy các thông tin tổng quan
             Map<String, Object> dashboardInfo = new HashMap<>();
@@ -297,7 +249,6 @@ public class ManagerController {
 
             return ResponseEntity.ok(dashboardInfo);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy tổng quan dashboard", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy tổng quan dashboard: " + e.getMessage()));
         }
@@ -308,24 +259,89 @@ public class ManagerController {
      */
     @GetMapping("/doctor-profiles")
     public ResponseEntity<?> getDoctorProfiles() {
-        logger.info("Nhận yêu cầu lấy danh sách bác sĩ từ bảng doctor_profile");
-
         try {
             List<DoctorProfile> doctorProfiles = doctorProfileRepository.findAll();
 
-            logger.info("Tìm thấy {} bác sĩ từ bảng doctor_profile", doctorProfiles.size());
-            for (DoctorProfile doctor : doctorProfiles) {
-                logger.info("DoctorProfile: ID={}, UserID={}, Name={}",
-                        doctor.getDoctorId(),
-                        doctor.getUser().getId(),
-                        doctor.getUser().getFullName());
-            }
-
             return ResponseEntity.ok(doctorProfiles);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy danh sách bác sĩ từ bảng doctor_profile", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy danh sách bác sĩ: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * API lấy thống kê lịch hẹn
+     */
+    @GetMapping("/appointment-stats")
+    public ResponseEntity<?> getAppointmentStatistics() {
+        try {
+            Map<String, Object> stats = new HashMap<>();
+
+            // Lấy số lượng lịch hẹn theo trạng thái
+            long pendingCount = appointmentService.countAppointmentsByStatus("Chờ xác nhận");
+            long approvedCount = appointmentService.countAppointmentsByStatus("Đã xác nhận");
+            long cancelledCount = appointmentService.countAppointmentsByStatus("Đã hủy");
+            long completedCount = appointmentService.countAppointmentsByStatus("Hoàn thành");
+
+            // Tính tổng số lịch hẹn
+            long totalCount = pendingCount + approvedCount + cancelledCount + completedCount;
+
+            // Đóng gói kết quả
+            stats.put("pendingCount", pendingCount);
+            stats.put("approvedCount", approvedCount);
+            stats.put("cancelledCount", cancelledCount);
+            stats.put("completedCount", completedCount);
+            stats.put("totalCount", totalCount);
+
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khi lấy thống kê lịch hẹn: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * API lấy danh sách lịch hẹn theo trạng thái hoặc khoảng thời gian
+     */
+    @GetMapping("/appointments")
+    public ResponseEntity<?> getAppointments(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "5") int limit) {
+
+        try {
+            Map<String, Object> result = appointmentService.getAppointmentsForManager(status, startDate, endDate, page,
+                    size, limit);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khi lấy danh sách lịch hẹn: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * API cập nhật trạng thái lịch hẹn
+     */
+    @PutMapping("/appointments/{id}/status")
+    public ResponseEntity<?> updateAppointmentStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> statusUpdate) {
+
+        String status = statusUpdate.get("status");
+        String cancellationReason = statusUpdate.get("cancellationReason");
+
+        try {
+            Map<String, Object> result = appointmentService.updateAppointmentStatus(id, status, cancellationReason);
+            return ResponseEntity.ok(result);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Không tìm thấy lịch hẹn: " + e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khi cập nhật trạng thái lịch hẹn: " + e.getMessage()));
         }
     }
 }

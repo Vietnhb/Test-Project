@@ -18,13 +18,11 @@ import com.fpt.hivtreatment.security.jwt.AuthEntryPointJwt;
 import com.fpt.hivtreatment.security.jwt.AuthTokenFilter;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
-@Slf4j
 public class WebSecurityConfig {
 
     private final AuthEntryPointJwt unauthorizedHandler;
@@ -37,17 +35,56 @@ public class WebSecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        log.info("Configuring Spring Security...");
-
         http.csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    // WebSocket endpoints
+                    auth.requestMatchers("/ws/**").permitAll();
+                    auth.requestMatchers("/api/ws/**").permitAll();
+
+                    // Debug endpoints - no authentication required
+                    auth.requestMatchers("/debug/**").permitAll();
+                    auth.requestMatchers("/api/debug/**").permitAll();
+                    auth.requestMatchers("/debug/database-tables").permitAll();
+                    auth.requestMatchers("/api/debug/database-tables").permitAll();
+
+                    // Swagger UI endpoints
+                    auth.requestMatchers("/swagger-ui.html").permitAll();
+                    auth.requestMatchers("/swagger-ui/**").permitAll();
+                    auth.requestMatchers("/api-docs/**").permitAll();
+                    auth.requestMatchers("/v3/api-docs/**").permitAll();
+
                     // Public endpoints
                     auth.requestMatchers("/api/auth/**").permitAll();
                     auth.requestMatchers("/api/public/**").permitAll();
                     auth.requestMatchers("/api/doctors/**").permitAll();
                     auth.requestMatchers("/api/test-data/**").permitAll();
+                    auth.requestMatchers("/api/test-types/**").permitAll(); // Endpoint xét nghiệm không yêu cầu xác
+                                                                            // thực
+                    auth.requestMatchers("/appointments/test").permitAll(); // Lab test orders endpoints - accessible by
+                                                                            // authenticated users
+                    auth.requestMatchers("/api/lab-test-orders/**").hasAnyAuthority("1", "2", "3", "5"); // Patient,
+                                                                                                         // Doctor,
+                                                                                                         // Staff,
+                                                                                                         // Manager
+
+                    // Treatment protocols endpoints - accessible by doctors
+                    auth.requestMatchers("/api/treatment-protocols/**").permitAll();
+                    // Payment endpoints
+                    auth.requestMatchers("/api/payments/**").hasAnyAuthority("2", "3");// Patient, Doctor,
+                                                                                       // Staff, Manager
+
+                    // Chat endpoints
+                    auth.requestMatchers("/api/chat/**").authenticated();
+                    auth.requestMatchers("/topic/**").permitAll();
+                    auth.requestMatchers("/app/**").permitAll();
+
+                    // Thêm các đường dẫn /api/... tương ứng
+                    auth.requestMatchers("/api/appointments").authenticated();
+                    auth.requestMatchers("/api/appointments/**").authenticated();
+                    auth.requestMatchers("/api/patient/appointments").authenticated();
+                    auth.requestMatchers("/api/doctor/appointments").authenticated();
 
                     // Admin and Manager only endpoints
                     auth.requestMatchers("/api/admin/**").hasAnyAuthority("4", "5");
@@ -58,24 +95,22 @@ public class WebSecurityConfig {
                     auth.requestMatchers("/api/patient/**").hasAuthority("1");
 
                     // Admin-only endpoints
-                    auth.requestMatchers("/api/users/**").hasAuthority("4");
+                    auth.requestMatchers("/api/users/**").hasAnyAuthority("4", "2", "3");
 
                     // Manager-only endpoints
                     auth.requestMatchers("/api/manager/**").hasAuthority("5");
+                    auth.requestMatchers("/manager/**").hasAuthority("5");
 
                     // Authenticated endpoints (all users)
                     auth.requestMatchers("/api/profile/**").authenticated();
 
                     // Default - require authentication
                     auth.anyRequest().authenticated();
-
-                    log.info("Security paths configured with role-based access control");
                 });
 
         http.addFilterBefore(corsFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
-        log.info("Spring Security configuration completed");
         return http.build();
     }
 

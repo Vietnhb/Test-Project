@@ -6,10 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
-import lombok.extern.slf4j.Slf4j;
 
 @Configuration
-@Slf4j
 public class CorsConfig {
 
     @Value("${app.cors.allowedOrigins}")
@@ -26,7 +24,6 @@ public class CorsConfig {
         // Thêm các origins được phép từ application.properties
         for (String origin : allowedOrigins.split(",")) {
             config.addAllowedOrigin(origin.trim());
-            log.info("CORS: Đã thêm origin: {}", origin.trim());
         }
 
         // Cho phép tất cả các headers và methods
@@ -38,7 +35,6 @@ public class CorsConfig {
 
         // Áp dụng cấu hình cho tất cả các endpoints
         source.registerCorsConfiguration("/**", config);
-        log.info("CORS configuration đã được khởi tạo");
         return new CorsFilter(source);
     }
 }

@@ -3,8 +3,6 @@ package com.fpt.hivtreatment.controller;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +21,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class WorkShiftController {
 
-    private static final Logger logger = LoggerFactory.getLogger(WorkShiftController.class);
-
     private final WorkShiftRepository workShiftRepository;
 
     /**
@@ -34,15 +30,12 @@ public class WorkShiftController {
      */
     @GetMapping("/work-shifts")
     public ResponseEntity<?> getAllWorkShifts() {
-        logger.info("Nhận yêu cầu lấy danh sách tất cả ca làm việc");
-
         try {
             // Lấy danh sách tất cả ca làm việc đang active
             List<WorkShift> workShifts = workShiftRepository.findByIsActive(true);
 
             return ResponseEntity.ok(workShifts);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy danh sách ca làm việc", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy danh sách ca làm việc: " + e.getMessage()));
         }
@@ -53,8 +46,6 @@ public class WorkShiftController {
      */
     @GetMapping("/work-shifts/{id}")
     public ResponseEntity<?> getWorkShiftById(@PathVariable Long id) {
-        logger.info("Nhận yêu cầu lấy thông tin ca làm việc với id: {}", id);
-
         try {
             WorkShift workShift = workShiftRepository.findById(id)
                     .orElse(null);
@@ -66,7 +57,6 @@ public class WorkShiftController {
 
             return ResponseEntity.ok(workShift);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy thông tin ca làm việc", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy thông tin ca làm việc: " + e.getMessage()));
         }
@@ -77,15 +67,12 @@ public class WorkShiftController {
      */
     @GetMapping("/common/work-shifts")
     public ResponseEntity<?> getCommonWorkShifts() {
-        logger.info("Nhận yêu cầu lấy danh sách ca làm việc chung");
-
         try {
             // Lấy danh sách tất cả ca làm việc đang active
             List<WorkShift> workShifts = workShiftRepository.findByIsActive(true);
 
             return ResponseEntity.ok(workShifts);
         } catch (Exception e) {
-            logger.error("Lỗi khi lấy danh sách ca làm việc chung", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy danh sách ca làm việc chung: " + e.getMessage()));
         }

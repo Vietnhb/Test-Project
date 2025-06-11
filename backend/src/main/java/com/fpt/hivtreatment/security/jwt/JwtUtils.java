@@ -11,12 +11,10 @@ import com.fpt.hivtreatment.security.services.UserDetailsImpl;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.SecretKey;
 
 @Component
-@Slf4j
 public class JwtUtils {
 
     @Value("${app.jwtSecret}")
@@ -35,7 +33,6 @@ public class JwtUtils {
                 .signWith(key())
                 .compact();
 
-        log.debug("Generated JWT token for user: {}", userPrincipal.getUsername());
         return token;
     }
 
@@ -54,25 +51,23 @@ public class JwtUtils {
 
     public boolean validateJwtToken(String authToken) {
         try {
-            log.info("Validating JWT token...");
             Jwts.parserBuilder()
                     .setSigningKey(key())
                     .build()
                     .parseClaimsJws(authToken);
-            log.info("JWT token validated successfully");
             return true;
         } catch (MalformedJwtException e) {
-            log.error("Invalid JWT token: {}", e.getMessage());
+            // Invalid JWT token
         } catch (ExpiredJwtException e) {
-            log.error("JWT token is expired: {}", e.getMessage());
+            // JWT token is expired
         } catch (UnsupportedJwtException e) {
-            log.error("JWT token is unsupported: {}", e.getMessage());
+            // JWT token is unsupported
         } catch (IllegalArgumentException e) {
-            log.error("JWT claims string is empty: {}", e.getMessage());
+            // JWT claims string is empty
         } catch (io.jsonwebtoken.security.SecurityException e) {
-            log.error("JWT signature validation failed: {}", e.getMessage());
+            // JWT signature validation failed
         } catch (Exception e) {
-            log.error("Unexpected error during JWT validation: {}", e.getMessage());
+            // Unexpected error during JWT validation
         }
         return false;
     }

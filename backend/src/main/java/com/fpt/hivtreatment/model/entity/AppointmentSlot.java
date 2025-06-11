@@ -34,7 +34,8 @@ public class AppointmentSlot {
     @JoinColumn(name = "doctor_id", nullable = false)
     private DoctorProfile doctor;
 
-    @Column(name = "is_available", nullable = false)
+    @Column(name = "is_available")
+    @Builder.Default
     private Boolean isAvailable = true;
 
     @CreatedDate

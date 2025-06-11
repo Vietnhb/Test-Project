@@ -271,6 +271,12 @@ public class UserManagementServiceImpl implements UserManagementService {
         response.setRoleName(user.getRole().getName());
         response.setIsActive(user.getIsActive());
         response.setCreatedAt(java.time.LocalDateTime.now());
+
+        // Bổ sung các trường còn thiếu
+        response.setGender(user.getGender());
+        response.setDateOfBirth(user.getDateOfBirth());
+        response.setProfileImage(user.getProfileImage());
+
         return response;
     }
 }

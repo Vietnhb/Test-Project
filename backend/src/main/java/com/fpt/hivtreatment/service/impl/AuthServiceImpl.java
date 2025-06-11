@@ -104,7 +104,6 @@ public class AuthServiceImpl implements AuthService {
         return userResponse;
     }
 
-    
     @Override
     @Transactional
     public UserResponse registerUser(RegisterRequest registerRequest) {
@@ -157,18 +156,15 @@ public class AuthServiceImpl implements AuthService {
         User savedUser = userRepository.save(user);
         logger.info("Người dùng {} đã đăng ký thành công", savedUser.getUsername());
 
-        
         LoginRequest loginRequest = new LoginRequest(registerRequest.getUsername(), registerRequest.getPassword());
         return authenticateUser(loginRequest);
     }
 
-   
     @Override
     public Boolean checkUsernameExists(String username) {
         return userRepository.existsByUsername(username);
     }
 
-    
     @Override
     public Boolean checkEmailExists(String email) {
         if (email == null || email.isEmpty()) {

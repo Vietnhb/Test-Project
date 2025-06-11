@@ -22,7 +22,7 @@ public class DoctorScheduleController {
     private final DoctorScheduleService doctorScheduleService;
 
     @PostMapping
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAuthority('5')") // Manager role (role_id = 5)
     public ResponseEntity<DoctorScheduleResponse> createSchedule(@Valid @RequestBody DoctorScheduleRequest request) {
         return new ResponseEntity<>(doctorScheduleService.createSchedule(request), HttpStatus.CREATED);
     }

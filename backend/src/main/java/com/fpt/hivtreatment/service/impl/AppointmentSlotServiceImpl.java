@@ -201,17 +201,32 @@ public class AppointmentSlotServiceImpl implements AppointmentSlotService {
 
         @Override
         public List<AppointmentSlotDTO> getSlotsByDoctorAndDate(Long doctorId, String dateStr) {
-                DoctorProfile doctor = doctorProfileRepository.findById(doctorId)
-                                .orElseThrow(() -> new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId));
+                logger.info("Getting appointment slots for doctor ID: {} on date: {}", doctorId, dateStr);
 
-                LocalDate date = LocalDate.parse(dateStr);
+                try {
+                        // Parse the date string to LocalDate
+                        LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_DATE);
 
-                List<AppointmentSlot> slots = appointmentSlotRepository.findByDoctorAndDoctorSchedule_ScheduleDate(
-                                doctor,
-                                date);
-                return slots.stream()
-                                .map(this::mapToAppointmentSlotDTO)
-                                .collect(Collectors.toList());
+                        // Find the doctor
+                        DoctorProfile doctor = doctorProfileRepository.findById(doctorId)
+                                        .orElseThrow(() -> new RuntimeException(
+                                                        "Doctor not found with ID: " + doctorId));
+
+                        // Find slots by doctor and date
+                        List<AppointmentSlot> slots = appointmentSlotRepository
+                                        .findByDoctorAndDoctorSchedule_ScheduleDate(doctor, date);
+
+                        logger.info("Found {} appointment slots for doctor ID: {} on date: {}",
+                                        slots.size(), doctorId, dateStr);
+
+                        // Convert to DTOs
+                        return slots.stream()
+                                        .map(this::mapToAppointmentSlotDTO)
+                                        .collect(Collectors.toList());
+                } catch (Exception e) {
+                        logger.error("Error getting appointment slots by doctor and date", e);
+                        return new ArrayList<>();
+                }
         }
 
         /**
@@ -247,14 +262,16 @@ public class AppointmentSlotServiceImpl implements AppointmentSlotService {
          * Chuyển đổi từ entity sang DTO
          */
         private AppointmentSlotDTO mapToAppointmentSlotDTO(AppointmentSlot slot) {
-                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
-
-                // Cải thiện việc lấy tên bác sĩ để tránh NPE
-                String doctorName = "Dr. Unknown";
+                // Get doctor name safely
+                String doctorName = "Unknown Doctor";
                 try {
-                        if (slot.getDoctor() != null && slot.getDoctor().getUser() != null) {
-                                doctorName = slot.getDoctor().getUser().getUsername();
+                        if (slot.getDoctor() != null) {
+                                // Try to get the doctor's name from wherever it's stored in your model
+                                // This might be user.fullName, user.username, or a direct field on
+                                // DoctorProfile
+                                if (slot.getDoctor().getUser() != null) {
+                                        doctorName = slot.getDoctor().getUser().getUsername();
+                                }
                         }
                 } catch (Exception e) {
                         logger.warn("Could not get doctor name: {}", e.getMessage());
@@ -267,10 +284,11 @@ public class AppointmentSlotServiceImpl implements AppointmentSlotService {
                                 .doctorId(slot.getDoctor().getDoctorId())
                                 .isAvailable(slot.getIsAvailable())
                                 .createdAt(slot.getCreatedAt())
-                                .timeSlotStart(slot.getTimeSlot().getStartTime().format(timeFormatter))
-                                .timeSlotEnd(slot.getTimeSlot().getEndTime().format(timeFormatter))
+                                // Add additional fields for frontend
+                                .timeSlotStart(slot.getTimeSlot().getStartTime().toString())
+                                .timeSlotEnd(slot.getTimeSlot().getEndTime().toString())
                                 .doctorName(doctorName)
-                                .scheduleDate(slot.getDoctorSchedule().getScheduleDate().format(dateFormatter))
+                                .scheduleDate(slot.getDoctorSchedule().getScheduleDate().toString())
                                 .build();
         }
 }

@@ -5,9 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLDelete;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.Date;
@@ -19,7 +17,6 @@ import java.util.Date;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-@SQLDelete(sql = "UPDATE users SET is_deleted = true WHERE id = ?")
 public class User {
 
     @Id
@@ -48,19 +45,10 @@ public class User {
     @Builder.Default
     private Boolean isActive = true;
 
-    @Column(name = "is_deleted")
-    @Builder.Default
-    private Boolean isDeleted = false;
-
     @CreatedDate
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", updatable = false)
     private Date createdAt;
-
-    @LastModifiedDate
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "updated_at")
-    private Date updatedAt;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", referencedColumnName = "id")
