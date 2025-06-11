@@ -59,11 +59,14 @@ public class AuthController {
      * 
      * @return Thông tin của người dùng đang đăng nhập
      */
+<<<<<<< HEAD
     @Operation(summary = "Lấy thông tin người dùng hiện tại", description = "Trả về thông tin người dùng đã đăng nhập dựa trên JWT token")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lấy thông tin thành công", content = @Content(mediaType = "application/json")),
             @ApiResponse(responseCode = "401", description = "Chưa xác thực hoặc token không hợp lệ", content = @Content(mediaType = "application/json"))
     })
+=======
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @GetMapping("/user")
     public ResponseEntity<?> getCurrentUser() {
         try {
@@ -73,6 +76,10 @@ public class AuthController {
                     authentication.getPrincipal() instanceof UserDetailsImpl) {
 
                 UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+<<<<<<< HEAD
+=======
+                logger.info("Current authenticated user: {}, ID: {}", userDetails.getUsername(), userDetails.getId());
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("id", userDetails.getId());
@@ -84,20 +91,31 @@ public class AuthController {
 
                 return ResponseEntity.ok(response);
             } else {
+<<<<<<< HEAD
+=======
+                logger.warn("Authentication context found but user not properly authenticated");
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(errorResponse("User not authenticated"));
             }
         } catch (Exception e) {
+<<<<<<< HEAD
+=======
+            logger.error("Error retrieving current user: ", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(errorResponse("Error retrieving current user: " + e.getMessage()));
         }
     }
 
+<<<<<<< HEAD
     @Operation(summary = "Đăng nhập", description = "Đăng nhập vào hệ thống và nhận JWT token")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Đăng nhập thành công", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponse.class))),
             @ApiResponse(responseCode = "401", description = "Sai tên đăng nhập hoặc mật khẩu", content = @Content(mediaType = "application/json"))
     })
+=======
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         try {

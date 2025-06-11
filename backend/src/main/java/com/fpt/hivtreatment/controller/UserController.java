@@ -59,6 +59,7 @@ public class UserController {
         }
     }
 
+<<<<<<< HEAD
     @GetMapping("/users/profile")
     public ResponseEntity<?> getUserProfile() {
         try {
@@ -131,30 +132,49 @@ public class UserController {
     }
 
     @GetMapping("/user/admin")
+=======
+    @GetMapping("/admin")
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @PreAuthorize("hasAuthority('4')")
     public ResponseEntity<?> adminAccess() {
         return ResponseEntity.ok(Map.of("message", "Admin Content"));
     }
 
+<<<<<<< HEAD
     @GetMapping("/user/doctor")
+=======
+    @GetMapping("/doctor")
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @PreAuthorize("hasAuthority('2')")
     public ResponseEntity<?> doctorAccess() {
         return ResponseEntity.ok(Map.of("message", "Doctor Content"));
     }
 
+<<<<<<< HEAD
     @GetMapping("/user/staff")
+=======
+    @GetMapping("/staff")
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @PreAuthorize("hasAuthority('3')")
     public ResponseEntity<?> staffAccess() {
         return ResponseEntity.ok(Map.of("message", "Staff Content"));
     }
 
+<<<<<<< HEAD
     @GetMapping("/user/patient")
+=======
+    @GetMapping("/patient")
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @PreAuthorize("hasAuthority('1')")
     public ResponseEntity<?> patientAccess() {
         return ResponseEntity.ok(Map.of("message", "Patient Content"));
     }
 
+<<<<<<< HEAD
     @GetMapping("/user/manager")
+=======
+    @GetMapping("/manager")
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @PreAuthorize("hasAuthority('5')")
     public ResponseEntity<?> managerAccess() {
         return ResponseEntity.ok(Map.of("message", "Manager Content"));

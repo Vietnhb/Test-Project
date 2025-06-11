@@ -39,27 +39,34 @@ public class WebSecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+<<<<<<< HEAD
                     // WebSocket endpoints
                     auth.requestMatchers("/ws/**").permitAll();
                     auth.requestMatchers("/api/ws/**").permitAll();
 
+=======
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
                     // Debug endpoints - no authentication required
                     auth.requestMatchers("/debug/**").permitAll();
                     auth.requestMatchers("/api/debug/**").permitAll();
                     auth.requestMatchers("/debug/database-tables").permitAll();
                     auth.requestMatchers("/api/debug/database-tables").permitAll();
 
+<<<<<<< HEAD
                     // Swagger UI endpoints
                     auth.requestMatchers("/swagger-ui.html").permitAll();
                     auth.requestMatchers("/swagger-ui/**").permitAll();
                     auth.requestMatchers("/api-docs/**").permitAll();
                     auth.requestMatchers("/v3/api-docs/**").permitAll();
 
+=======
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
                     // Public endpoints
                     auth.requestMatchers("/api/auth/**").permitAll();
                     auth.requestMatchers("/api/public/**").permitAll();
                     auth.requestMatchers("/api/doctors/**").permitAll();
                     auth.requestMatchers("/api/test-data/**").permitAll();
+<<<<<<< HEAD
                     auth.requestMatchers("/api/test-types/**").permitAll(); // Endpoint xét nghiệm không yêu cầu xác
                                                                             // thực
                     auth.requestMatchers("/appointments/test").permitAll(); // Lab test orders endpoints - accessible by
@@ -79,6 +86,11 @@ public class WebSecurityConfig {
                     auth.requestMatchers("/api/chat/**").authenticated();
                     auth.requestMatchers("/topic/**").permitAll();
                     auth.requestMatchers("/app/**").permitAll();
+=======
+                    auth.requestMatchers("/appointments/test").permitAll();
+
+
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 
                     // Thêm các đường dẫn /api/... tương ứng
                     auth.requestMatchers("/api/appointments").authenticated();

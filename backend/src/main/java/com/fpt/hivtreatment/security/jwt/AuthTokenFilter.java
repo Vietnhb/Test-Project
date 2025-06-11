@@ -36,6 +36,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         try {
             String requestURI = request.getRequestURI();
+<<<<<<< HEAD
 
             String jwt = parseJwt(request);
             if (jwt != null) {
@@ -45,12 +46,50 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                     if (userDetails != null) {
+=======
+
+            // Don't log health checks and other common endpoints
+            if (!requestURI.contains("/actuator") && !requestURI.contains("/favicon.ico")) {
+                log.info("Processing request: {} {}", request.getMethod(), requestURI);
+            }
+
+            String jwt = parseJwt(request);
+            if (jwt != null) {
+                if (!requestURI.contains("/actuator")) {
+                    log.info("JWT found in request for URI: {}", requestURI);
+                }
+
+                if (jwtUtils.validateJwtToken(jwt)) {
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    log.info("JWT valid for user: {}, URI: {}", username, requestURI);
+
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                    if (userDetails != null) {
+                        log.info("User details loaded. Username: {}, Authorities: {}",
+                                userDetails.getUsername(), userDetails.getAuthorities());
+
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                         SecurityContextHolder.getContext().setAuthentication(authentication);
+<<<<<<< HEAD
                     }
+=======
+                        log.info("Authentication set in SecurityContext for '{}', URI: {}", username, requestURI);
+                    } else {
+                        log.warn("Could not load user details for username: {}", username);
+                    }
+                } else {
+                    log.warn("Invalid JWT token for URI: {}", requestURI);
+                }
+            } else {
+                if (!requestURI.contains("/actuator") && !requestURI.equals("/api/auth/login") &&
+                        !requestURI.contains("/public") && !requestURI.contains("/assets")) {
+                    log.info("No JWT token found in request for URI: {}", requestURI);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
                 }
             }
         } catch (Exception e) {
@@ -65,6 +104,10 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
             String token = headerAuth.substring(7);
+<<<<<<< HEAD
+=======
+            log.debug("Bearer token extracted from request, length: {}", token.length());
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return token;
         }
 

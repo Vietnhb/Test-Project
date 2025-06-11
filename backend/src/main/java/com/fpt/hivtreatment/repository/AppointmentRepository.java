@@ -15,6 +15,7 @@ import java.util.List;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
+<<<<<<< HEAD
        List<Appointment> findByPatient(User patient);
 
        List<Appointment> findByDoctor(DoctorProfile doctor);
@@ -78,4 +79,25 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
                      @Param("excludeType") String excludeType,
                      @Param("status") String status,
                      @Param("date") LocalDate date);
+=======
+    List<Appointment> findByPatient(User patient);
+
+    List<Appointment> findByDoctor(DoctorProfile doctor);
+
+    List<Appointment> findByPatientAndStatus(User patient, String status);
+
+    List<Appointment> findByDoctorAndStatus(DoctorProfile doctor, String status);
+    
+    long countByStatus(String status);
+    
+    Page<Appointment> findByStatus(String status, Pageable pageable);
+    
+    @Query("SELECT a FROM Appointment a JOIN a.appointmentSlot slot JOIN slot.doctorSchedule ds " +
+           "WHERE a.status = :status AND CAST(ds.scheduleDate AS LocalDate) BETWEEN :startDate AND :endDate")
+    Page<Appointment> findByStatusAndDateRange(
+            @Param("status") String status, 
+            @Param("startDate") LocalDate startDate, 
+            @Param("endDate") LocalDate endDate, 
+            Pageable pageable);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 }

@@ -34,19 +34,26 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/admin")
+<<<<<<< HEAD
 @PreAuthorize("hasAuthority('4')")
 @RequiredArgsConstructor
 @Slf4j
+=======
+@PreAuthorize("hasAuthority('4')") // Chỉ Admin (role_id = 4) có quyền truy cập
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 public class AdminController {
 
     @Autowired
     private UserManagementService adminService;
 
+<<<<<<< HEAD
     private static final String[] CLEANUP_DIRS = {
             "./invoices",
             "./uploads"
     };
 
+=======
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     private ResponseEntity<?> createErrorResponse(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of("message", message));
     }
@@ -209,6 +216,7 @@ public class AdminController {
                     "Lỗi khi lấy thông tin tổng quan: " + e.getMessage());
         }
     }
+<<<<<<< HEAD
 
     /**
      * Cleanup unnecessary files
@@ -282,4 +290,6 @@ public class AdminController {
                     "message", "Error during file cleanup: " + e.getMessage()));
         }
     }
+=======
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 }

@@ -37,6 +37,7 @@ public class Appointment {
     @Column(name = "appointment_type", nullable = false)
     private String appointmentType;
 
+<<<<<<< HEAD
     @Column(name = "status", length = 20)
     @Builder.Default
     private String status = "Đã đặt"; // 'Đã đặt', 'Đã xác nhận', 'Đã hủy', 'Hoàn thành'
@@ -49,6 +50,14 @@ public class Appointment {
     @Builder.Default
     private Boolean isVirtual = false;
 
+=======
+    @Column(name = "status")
+    private String status = "Chờ xác nhận";
+
+    @Column(name = "is_anonymous")
+    private Boolean isAnonymous = false;
+
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     @Column(name = "symptoms")
     private String symptoms;
 

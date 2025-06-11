@@ -274,6 +274,11 @@ public class ManagerController {
      */
     @GetMapping("/appointment-stats")
     public ResponseEntity<?> getAppointmentStatistics() {
+<<<<<<< HEAD
+=======
+        logger.info("Nhận yêu cầu lấy thống kê lịch hẹn");
+
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
         try {
             Map<String, Object> stats = new HashMap<>();
 
@@ -293,8 +298,17 @@ public class ManagerController {
             stats.put("completedCount", completedCount);
             stats.put("totalCount", totalCount);
 
+<<<<<<< HEAD
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
+=======
+            logger.info("Thống kê lịch hẹn: chờ xác nhận={}, đã xác nhận={}, đã hủy={}, hoàn thành={}, tổng={}",
+                    pendingCount, approvedCount, cancelledCount, completedCount, totalCount);
+
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            logger.error("Lỗi khi lấy thống kê lịch hẹn", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy thống kê lịch hẹn: " + e.getMessage()));
         }
@@ -312,11 +326,22 @@ public class ManagerController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "5") int limit) {
 
+<<<<<<< HEAD
+=======
+        logger.info(
+                "Nhận yêu cầu lấy danh sách lịch hẹn với status={}, startDate={}, endDate={}, page={}, size={}, limit={}",
+                status, startDate, endDate, page, size, limit);
+
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
         try {
             Map<String, Object> result = appointmentService.getAppointmentsForManager(status, startDate, endDate, page,
                     size, limit);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
+<<<<<<< HEAD
+=======
+            logger.error("Lỗi khi lấy danh sách lịch hẹn", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi lấy danh sách lịch hẹn: " + e.getMessage()));
         }
@@ -333,13 +358,27 @@ public class ManagerController {
         String status = statusUpdate.get("status");
         String cancellationReason = statusUpdate.get("cancellationReason");
 
+<<<<<<< HEAD
+=======
+        logger.info("Nhận yêu cầu cập nhật trạng thái lịch hẹn id={} thành {}, lý do={}",
+                id, status, cancellationReason);
+
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
         try {
             Map<String, Object> result = appointmentService.updateAppointmentStatus(id, status, cancellationReason);
             return ResponseEntity.ok(result);
         } catch (ResourceNotFoundException e) {
+<<<<<<< HEAD
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "Không tìm thấy lịch hẹn: " + e.getMessage()));
         } catch (Exception e) {
+=======
+            logger.error("Không tìm thấy lịch hẹn để cập nhật: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Không tìm thấy lịch hẹn: " + e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Lỗi khi cập nhật trạng thái lịch hẹn", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi khi cập nhật trạng thái lịch hẹn: " + e.getMessage()));
         }

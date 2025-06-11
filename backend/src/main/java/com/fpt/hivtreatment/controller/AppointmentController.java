@@ -6,6 +6,11 @@ import com.fpt.hivtreatment.service.AppointmentService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+<<<<<<< HEAD
+=======
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,8 +22,15 @@ import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
+<<<<<<< HEAD
 public class AppointmentController {
 
+=======
+@CrossOrigin(origins = "*")
+public class AppointmentController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AppointmentController.class);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
     private final AppointmentService appointmentService;
 
     /**
@@ -31,6 +43,7 @@ public class AppointmentController {
     @PostMapping("/appointments")
     @PreAuthorize("hasAuthority('1') or hasAuthority('5')") // Allow patients (role 1) and managers (role 5)
     public ResponseEntity<?> createAppointment(@Valid @RequestBody AppointmentRequest request) {
+<<<<<<< HEAD
         try {
             AppointmentResponse createdAppointment = appointmentService.createAppointment(request);
 
@@ -40,6 +53,22 @@ public class AppointmentController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
+=======
+        logger.info("Received request to create appointment for slot ID: {}", request.getAppointmentSlotId());
+
+        try {
+            AppointmentResponse createdAppointment = appointmentService.createAppointment(request);
+
+            logger.info("Appointment created successfully with ID: {}", createdAppointment.getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdAppointment);
+        } catch (IllegalStateException e) {
+            // Slot already booked
+            logger.error("Failed to create appointment: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error creating appointment", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Error creating appointment: " + e.getMessage()));
         }
@@ -58,10 +87,21 @@ public class AppointmentController {
             @PathVariable Long id,
             @RequestParam String status) {
 
+<<<<<<< HEAD
         try {
             AppointmentResponse updatedAppointment = appointmentService.updateStatus(id, status);
             return ResponseEntity.ok(updatedAppointment);
         } catch (Exception e) {
+=======
+        logger.info("Received request to update appointment status for ID: {} to {}", id, status);
+
+        try {
+            AppointmentResponse updatedAppointment = appointmentService.updateStatus(id, status);
+            logger.info("Appointment status updated successfully for ID: {}", id);
+            return ResponseEntity.ok(updatedAppointment);
+        } catch (Exception e) {
+            logger.error("Error updating appointment status", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Error updating appointment status: " + e.getMessage()));
         }
@@ -78,8 +118,16 @@ public class AppointmentController {
     public ResponseEntity<?> getPatientAppointments(
             @RequestParam Long patientId) {
 
+<<<<<<< HEAD
         try {
             List<AppointmentResponse> appointments = appointmentService.getAppointmentsByPatient(patientId);
+=======
+        logger.info("Fetching appointments for patient ID: {}", patientId);
+
+        try {
+            List<AppointmentResponse> appointments = appointmentService.getAppointmentsByPatient(patientId);
+            logger.info("Found {} appointments for patient ID: {}", appointments.size(), patientId);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 
             Map<String, Object> response = new HashMap<>();
             response.put("appointments", appointments);
@@ -87,6 +135,10 @@ public class AppointmentController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+<<<<<<< HEAD
+=======
+            logger.error("Error fetching patient appointments", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Error fetching appointments: " + e.getMessage()));
         }
@@ -103,8 +155,16 @@ public class AppointmentController {
     public ResponseEntity<?> getDoctorAppointments(
             @RequestParam Long doctorId) {
 
+<<<<<<< HEAD
         try {
             List<AppointmentResponse> appointments = appointmentService.getAppointmentsByDoctor(doctorId);
+=======
+        logger.info("Fetching appointments for doctor ID: {}", doctorId);
+
+        try {
+            List<AppointmentResponse> appointments = appointmentService.getAppointmentsByDoctor(doctorId);
+            logger.info("Found {} appointments for doctor ID: {}", appointments.size(), doctorId);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 
             Map<String, Object> response = new HashMap<>();
             response.put("appointments", appointments);
@@ -112,6 +172,10 @@ public class AppointmentController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+<<<<<<< HEAD
+=======
+            logger.error("Error fetching doctor appointments", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Error fetching appointments: " + e.getMessage()));
         }
@@ -132,10 +196,19 @@ public class AppointmentController {
                                                                                                                            // xác
                                                                                                                            // thực
     public ResponseEntity<?> getAppointmentDetails(@PathVariable Long id) {
+<<<<<<< HEAD
+=======
+        logger.info("Fetching appointment details for ID: {}", id);
+
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
         try {
             AppointmentResponse appointment = appointmentService.getAppointmentById(id);
             return ResponseEntity.ok(appointment);
         } catch (Exception e) {
+<<<<<<< HEAD
+=======
+            logger.error("Error fetching appointment details", e);
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Error fetching appointment details: " + e.getMessage()));
         }

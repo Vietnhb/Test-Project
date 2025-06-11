@@ -65,10 +65,20 @@ public class AppointmentServiceImpl implements AppointmentService {
                         throw new IllegalStateException("This appointment slot is already booked");
                 }
 
+<<<<<<< HEAD
                 // Find the patient - always get patient regardless of anonymous status
                 User patient = userRepository.findById(request.getPatientId())
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 "Patient not found with id: " + request.getPatientId()));
+=======
+                // Find the patient
+                User patient = null;
+                if (request.getPatientId() != null && !request.getIsAnonymous()) {
+                        patient = userRepository.findById(request.getPatientId())
+                                        .orElseThrow(() -> new ResourceNotFoundException(
+                                                        "Patient not found with id: " + request.getPatientId()));
+                }
+>>>>>>> fd42c148e0431975301ca683137e9cc7dea64a1c
 
                 // Find the doctor
                 DoctorProfile doctor = doctorProfileRepository.findById(request.getDoctorId())
